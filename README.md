@@ -76,12 +76,21 @@ rules:
 ## Rules
 
 - **Layer violation** — a dependency crosses a layer boundary that the manifest forbids.
+  This covers **database leakage** (e.g. domain layer importing from a persistence/database
+  layer) when the manifest disallows the cross-layer dependency.
 - **Circular dependency** — a strongly-connected cycle across modules (Tarjan SCC).
 - **God module** — total coupling (fan-in + fan-out) exceeds the threshold.
 - **High coupling** — a module's fan-in (dependents) exceeds the threshold.
 
 Every violation reports the **origin commit** (the last commit that touched the source
 file carrying the offending dependency) when the analyzed path lives inside a git repo.
+
+### Known limitations
+
+**Cohesion** is not measured. The spec lists it as a detection, but Sentinel's
+granularity is file-as-node with symbol-level indexing only (no method/field body
+analysis). Accurate cohesion metrics (LCOM) require deeper parser integration and
+are deferred to a future iteration.
 
 ## Development
 
