@@ -14,8 +14,8 @@ to files by matching the referenced module (or last FQN segment) against project
 ## Flow
 
 ```
-Repository → Parser → Symbol Graph → Dependency Graph → Architecture Manifest
-           → Rule Engine → Violation Engine → Trend Analysis
+Repository -> Parser -> Symbol Graph -> Dependency Graph -> Architecture Manifest
+           -> Rule Engine -> Violation Engine -> Trend Analysis
 ```
 
 ## Installation
@@ -42,14 +42,26 @@ sentinel history <repo-path>
 
 # Generate an HTML report with charts
 sentinel report <repo-path> --manifest <manifest.yaml> [-o report.html]
+
+# Serve the interactive report and REST API
+sentinel serve <repo-path> --manifest <manifest.yaml> [--port 8000] [--db <path>]
 ```
 
-The `trend` command reports violation counts per commit and flags **introduced
-violations** — architecture it first sees at a given commit (regression), printed
-with the offending file under each commit.
+### REST API
 
-Use `--save` to persist analysis results to a local SQLite database (`.sentinel/sentinel.db`),
-and `history` to review how violations evolve across runs.
+`sentinel serve` exposes a lightweight stdlib HTTP server (no dependencies beyond Python) with:
+
+| Endpoint            | Description                                           |
+|---------------------|-------------------------------------------------------|
+| `GET /`             | Interactive HTML report generated on the fly           |
+| `GET /api/runs`     | List of all stored analysis runs (JSON)                |
+| `GET /api/runs/{id}`| Single run with full violations (JSON)                 |
+| `GET /api/report.json` | Current analysis result (live from violation engine) |
+
+The HTML report is interactive: filter by severity and kind, search, sort columns,
+export to CSV, copy commit SHAs, and switch between stored runs (when served by `sentinel serve`).
+Opened as a static file (`report.html` in `file://`), the report works exactly the same
+but omits the run selector since no API is available.
 
 ## Architecture manifest
 
@@ -75,22 +87,36 @@ rules:
 
 ## Rules
 
-- **Layer violation** — a dependency crosses a layer boundary that the manifest forbids.
+Sentinel runs **eight** architectural detection rules:
+
+- **Layer violation** -- a dependency crosses a layer boundary that the manifest forbids.
   This covers **database leakage** (e.g. domain layer importing from a persistence/database
   layer) when the manifest disallows the cross-layer dependency.
-- **Circular dependency** — a strongly-connected cycle across modules (Tarjan SCC).
-- **God module** — total coupling (fan-in + fan-out) exceeds the threshold.
-- **High coupling** — a module's fan-in (dependents) exceeds the threshold.
+- **Circular dependency** -- a strongly-connected cycle across modules (Tarjan SCC).
+- **God module** -- total coupling (fan-in + fan-out) exceeds the threshold.
+- **High coupling** -- a module's fan-in (dependents) exceeds the threshold.
+- **Low cohesion** -- intra-module cohesion drops below the threshold (LCOM heuristic
+  over public symbols per file).
+- **Boundary crossing** -- a file outside the dedicated layer imports a sentinel/marker
+  file (e.g. `__sentinel__.py`).
+- **React component** -- a file outside the UI layer imports a React component
+  (heuristic: files containing JSX/React patterns imported from non-presentation layers).
+- **Drift score** -- measures how the violation set changes between commits,
+  flagging introduced and resolved violations (regression detection).
 
 Every violation reports the **origin commit** (the last commit that touched the source
 file carrying the offending dependency) when the analyzed path lives inside a git repo.
 
-### Known limitations
+## Known limitations
 
-**Cohesion** is not measured. The spec lists it as a detection, but Sentinel's
-granularity is file-as-node with symbol-level indexing only (no method/field body
-analysis). Accurate cohesion metrics (LCOM) require deeper parser integration and
-are deferred to a future iteration.
+- **Symlinks on Windows** -- the symlink-aware test is skipped on Windows unless
+  `SENTINEL_TEST_SYMLINKS=1` is set (requires elevated privileges).
+- **Multirun API availability** -- the run selector in the interactive HTML report only
+  appears when served by `sentinel serve`. Opened as a static `file://` page, the report
+  shows inline data only.
+- **Cohesion analysis is heuristic** -- low cohesion detection uses a public-symbol
+  LCOM heuristic at the file level, not full method/field body analysis. Accurate LCOM
+  metrics would require deeper AST integration.
 
 ## Development
 
