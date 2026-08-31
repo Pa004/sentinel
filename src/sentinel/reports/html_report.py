@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import html as _html
 import json
 from pathlib import Path
 
@@ -110,16 +111,16 @@ def render_report(
     for v in violations:
         sev_cls = f"sev-{v.severity.value}"
         rows.append(
-            f"<tr><td>{v.rule}</td>"
-            f"<td class=\"{sev_cls}\">{v.severity.value}</td>"
-            f"<td>{v.evidence}</td>"
-            f"<td>{v.impact}</td>"
-            f"<td>{v.recommendation}</td></tr>"
+            f"<tr><td>{_html.escape(v.rule)}</td>"
+            f"<td class=\"{sev_cls}\">{_html.escape(v.severity.value)}</td>"
+            f"<td>{_html.escape(v.evidence)}</td>"
+            f"<td>{_html.escape(v.impact)}</td>"
+            f"<td>{_html.escape(v.recommendation)}</td></tr>"
         )
 
-    trend_json = json.dumps(trend_data or [])
+    trend_json = json.dumps(trend_data or []).replace("</", "<\\/")
     return _TEMPLATE.format(
-        meta=meta,
+        meta=_html.escape(meta),
         total=total,
         errors=errors,
         warnings=warnings,

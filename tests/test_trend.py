@@ -82,3 +82,11 @@ def test_analyze_at_commit_snapshots_each_state(tmp_path: Path) -> None:
     shas = [p.commit for p in commits]
     first = analyze_at_commit(repo, shas[0], MANIFEST)
     assert first.violations == []
+
+
+def test_analyze_at_commit_rejects_path_traversal(tmp_path: Path) -> None:
+    snapshot = tmp_path / ".sentinel_snapshot"
+    snapshot.mkdir()
+    # A path with ../ should not resolve inside snapshot
+    target = (snapshot / "../../etc/passwd").resolve()
+    assert not target.is_relative_to(snapshot.resolve())

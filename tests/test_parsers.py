@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
+
+import pytest
 
 from sentinel.domain.symbols import Language, SymbolKind
 from sentinel.parsers.csharp import CSharpParser
@@ -180,3 +184,21 @@ def test_registry_source_files_ignores_ignored_dirs(tmp_path: Path) -> None:
     files = source_files(tmp_path)
     assert any(f == tmp_path / "app.ts" for f in files)
     assert not any("dep.ts" in str(f) for f in files)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" and not os.environ.get("SENTINEL_TEST_SYMLINKS"),
+    reason="Creating symlinks on Windows requires elevated privileges",
+)
+def test_registry_source_files_skips_symlinks(tmp_path: Path) -> None:
+    inside = tmp_path / "src"
+    inside.mkdir()
+    (inside / "app.ts").write_text("export const x = 1;\n", encoding="utf-8")
+    outside = tmp_path / "outside_repo"
+    outside.mkdir()
+    (outside / "secret.ts").write_text("export const y = 2;\n", encoding="utf-8")
+    symlink = inside / "link.ts"
+    symlink.symlink_to(outside / "secret.ts")
+    files = source_files(tmp_path)
+    assert any(f.name == "app.ts" for f in files)
+    assert not any(f.name == "link.ts" for f in files)
