@@ -8,7 +8,8 @@ from subprocess import run
 
 from sentinel.domain.manifest import ArchitectureManifest
 from sentinel.domain.trend import TrendPoint
-from sentinel.domain.violations import ViolationKind
+from sentinel.domain.violations import Violation, ViolationKind
+from sentinel.git_origin import source_path_from_evidence
 from sentinel.parsers.registry import parser_for
 from sentinel.violation_engine import AnalysisResult, analyze_repository
 
@@ -66,19 +67,46 @@ def analyze_at_commit(repo: Path, commit: str, manifest: ArchitectureManifest) -
     return result
 
 
+def _stable_key(violation: Violation, snapshot_dir: Path) -> str:
+    """A stable identity for a violation, independent of the temp snapshot path."""
+    source = source_path_from_evidence(violation.evidence)
+    if source is None:
+        return f"{violation.kind.value} <rule:{violation.rule}>"
+    try:
+        rel = source.relative_to(snapshot_dir)
+        return f"{violation.kind.value} {rel.as_posix()}"
+    except ValueError:
+        return f"{violation.kind.value} {source}"
+
+
 def build_trend(
     repo: Path,
     manifest: ArchitectureManifest,
     since: str | None = None,
     until: str | None = None,
 ) -> list[TrendPoint]:
-    """Compute violation counts per commit across the requested range."""
+    """Compute violation counts per commit and flag architectural regression.
+
+    A violation counts as introduced (regression) at a commit when its stable
+    identity was absent from the immediately preceding commit in the range.
+    """
     commits = list_commits(repo, since, until)
+    snapshot_dir = Path(repo) / SNAPSHOT_DIR
     points: list[TrendPoint] = []
+    prev_keys: set[str] = set()
     for sha in commits:
         result = analyze_at_commit(repo, sha, manifest)
         counts: dict[ViolationKind, int] = {}
+        introduced: list[str] = []
+        keys: set[str] = set()
         for v in result.violations:
             counts[v.kind] = counts.get(v.kind, 0) + 1
-        points.append(TrendPoint(commit=sha, counts=counts))
+            key = _stable_key(v, snapshot_dir)
+            keys.add(key)
+            if key not in prev_keys:
+                introduced.append(key)
+        points.append(
+            TrendPoint(commit=sha, counts=counts, introduced=sorted(introduced))
+        )
+        prev_keys = keys
     return points
