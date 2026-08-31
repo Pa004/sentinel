@@ -145,5 +145,51 @@ def history(
         store.close()
 
 
+@app.command()
+def report(
+    repo: Path = typer.Argument(..., help="Repository path"),  # noqa: B008
+    manifest: Path = typer.Option(  # noqa: B008
+        ...,
+        "--manifest",
+        "-m",
+        help="Architecture manifest YAML path",
+    ),
+    output: Path = typer.Option(  # noqa: B008
+        Path("sentinel-report.html"),
+        "--output",
+        "-o",
+        help="Output HTML file path",
+    ),
+    db: Path | None = typer.Option(None, "--db", help="Override SQLite database path"),  # noqa: B008
+) -> None:
+    """Generate a self-contained HTML report with violations and trend charts."""
+    from sentinel.domain.manifest import ArchitectureManifest
+    from sentinel.git_origin import find_git_root, last_commit_sha
+    from sentinel.manifest.loader import load_manifest
+    from sentinel.reports.html_report import write_report
+    from sentinel.trend import build_trend
+    from sentinel.violation_engine import analyze_repository
+
+    man: ArchitectureManifest = load_manifest(manifest)
+    git_root = find_git_root(repo)
+    result = analyze_repository(repo, man, git_root=git_root)
+    commit = last_commit_sha(repo) or "n/a"
+
+    # Build trend data from git history
+    points = build_trend(repo, man)
+    trend_data = [
+        {"commit": p.commit, "counts": {k.value: v for k, v in p.counts.items()}}
+        for p in points
+    ]
+
+    write_report(
+        output,
+        violations=result.violations,
+        trend_data=trend_data,
+        meta=f"Repo: {repo} | Commit: {commit[:8]} | Violations: {len(result.violations)}",
+    )
+    console.print(f"Report written to {output}")
+
+
 if __name__ == "__main__":
     app()

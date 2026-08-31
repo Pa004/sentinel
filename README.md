@@ -39,6 +39,9 @@ sentinel trend <repo-path> --manifest <manifest.yaml> [--from <sha>] [--to <sha>
 
 # Show stored analysis runs
 sentinel history <repo-path>
+
+# Generate an HTML report with charts
+sentinel report <repo-path> --manifest <manifest.yaml> [-o report.html]
 ```
 
 The `trend` command reports violation counts per commit and flags **introduced
