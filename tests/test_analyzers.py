@@ -89,3 +89,32 @@ def test_resolve_relative_import(tmp_path: Path) -> None:
     # "./utils" relative to importer in src/
     result = extractor.resolve("./utils", base / "main.py")
     assert result == utils
+
+
+def test_empty_repo_produces_empty_graph(tmp_path: Path) -> None:
+    graph = build_dependency_graph(())
+    assert graph.nodes() == ()
+
+
+def test_corrupt_encoding_file_skipped(tmp_path: Path) -> None:
+    good = tmp_path / "good.py"
+    good.write_text("import helper\n", encoding="utf-8")
+    helper = tmp_path / "helper.py"
+    helper.write_text("", encoding="utf-8")
+    bad = tmp_path / "bad.py"
+    bad.write_bytes(b"\x80\x81\x82\x83\xff\xfe")
+    graph = build_dependency_graph((good, helper, bad))
+    assert good in graph.nodes()
+    assert bad not in graph.nodes()
+
+
+def test_same_stem_deterministic(tmp_path: Path) -> None:
+    pkg = tmp_path / "pkg"
+    pkg.mkdir()
+    a = pkg / "utils.py"
+    a.write_text("", encoding="utf-8")
+    b = tmp_path / "utils.py"
+    b.write_text("", encoding="utf-8")
+    extractor = DependencyExtractor((a, b))
+    result = extractor.resolve("utils", tmp_path / "main.py")
+    assert result is not None

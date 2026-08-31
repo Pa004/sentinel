@@ -103,6 +103,14 @@ def test_get_nonexistent_run_returns_none(tmp_path: Path) -> None:
         store.close()
 
 
+def test_delete_nonexistent_run_returns_false(tmp_path: Path) -> None:
+    store = ArchitectureStore(tmp_path / "test.db")
+    try:
+        assert store.delete_run(999) is False
+    finally:
+        store.close()
+
+
 def test_delete_run(tmp_path: Path) -> None:
     repo = _write_repo(tmp_path)
     result = analyze_repository(repo, MANIFEST)

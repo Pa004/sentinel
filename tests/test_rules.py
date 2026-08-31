@@ -103,3 +103,24 @@ def test_no_god_module_under_threshold(tmp_path: Path) -> None:
     graph, mapper = _setup(root)
     violations = GodModuleRule(threshold=10).check(graph, MANIFEST, mapper, root)
     assert violations == []
+
+
+def test_self_import_skipped(tmp_path: Path) -> None:
+    _write(tmp_path / "src", {"a.py": "import a\n"})
+    graph, mapper = _setup(tmp_path / "src")
+    violations = CircularDependencyRule().check(graph, MANIFEST, mapper, tmp_path / "src")
+    assert violations == []
+
+
+def test_dag_no_circular_dependencies(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src",
+        {
+            "a.ts": "import './b';\nimport './c';\n",
+            "b.ts": "import './c';\n",
+            "c.ts": "export const c = {};\n",
+        },
+    )
+    graph, mapper = _setup(tmp_path / "src")
+    violations = CircularDependencyRule().check(graph, MANIFEST, mapper, tmp_path / "src")
+    assert violations == []
