@@ -14,6 +14,7 @@ class TrendPoint:
     commit: str
     counts: dict[ViolationKind, int] = field(default_factory=dict)
     introduced: list[str] = field(default_factory=list)
+    drift: float = 0.0
 
     def total(self) -> int:
         return sum(self.counts.values())

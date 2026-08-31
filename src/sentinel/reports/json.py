@@ -27,5 +27,6 @@ def serialize(result: AnalysisResult) -> str:
         "violations": [_violation_to_dict(v) for v in result.violations],
         "total": len(result.violations),
         "nodes": len(result.graph.nodes()),
+        "drift": result.drift,
     }
     return json.dumps(payload, indent=2)

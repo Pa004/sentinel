@@ -29,6 +29,9 @@ _TEMPLATE = """\
            padding: 1rem; text-align: center; }}
   .card .num {{ font-size: 2rem; font-weight: 700; }}
   .card .label {{ font-size: .8rem; color: #8b949e; }}
+  .drift-green {{ color: var(--green); }}
+  .drift-yellow {{ color: var(--warn); }}
+  .drift-red {{ color: var(--err); }}
   table {{ width: 100%; border-collapse: collapse; margin-bottom: 2rem; }}
   th, td {{ text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--border); }}
   th {{ color: #8b949e; font-size: .8rem; text-transform: uppercase; }}
@@ -49,6 +52,7 @@ _TEMPLATE = """\
   <div class="card"><div class="num" style="color:var(--err)">{errors}</div><div class="label">Errors</div></div>
   <div class="card"><div class="num" style="color:var(--warn)">{warnings}</div><div class="label">Warnings</div></div>
   <div class="card"><div class="num" style="color:var(--info)">{infos}</div><div class="label">Info</div></div>
+  <div class="card"><div class="num {drift_cls}">{drift}</div><div class="label">Drift</div></div>
 </div>
 
 <h2 style="margin-bottom:.5rem">Violations</h2>
@@ -100,12 +104,18 @@ def render_report(
     violations: list,
     trend_data: list[dict] | None = None,
     meta: str = "",
+    drift: float = 0.0,
 ) -> str:
     """Return a self-contained HTML report string."""
     errors = sum(1 for v in violations if v.severity.value == "error")
     warnings = sum(1 for v in violations if v.severity.value == "warning")
     infos = sum(1 for v in violations if v.severity.value == "info")
     total = len(violations)
+    drift_cls = (
+        "drift-green" if drift <= 0.3
+        else "drift-yellow" if drift <= 0.6
+        else "drift-red"
+    )
 
     rows = []
     for v in violations:
@@ -125,6 +135,8 @@ def render_report(
         errors=errors,
         warnings=warnings,
         infos=infos,
+        drift=f"{drift:.2f}",
+        drift_cls=drift_cls,
         violations_rows="\n".join(rows),
         trend_json=trend_json,
     )
@@ -136,9 +148,10 @@ def write_report(
     violations: list,
     trend_data: list[dict] | None = None,
     meta: str = "",
+    drift: float = 0.0,
 ) -> None:
     """Write an HTML report to `output`."""
     html = render_report(
-        violations=violations, trend_data=trend_data, meta=meta
+        violations=violations, trend_data=trend_data, meta=meta, drift=drift
     )
     output.write_text(html, encoding="utf-8")
