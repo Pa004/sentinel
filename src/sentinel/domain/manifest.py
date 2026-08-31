@@ -34,6 +34,9 @@ class ArchitectureManifest:
     def layer(self, name: str) -> Layer | None:
         return self.layers.get(name)
 
+    def has_layer(self, name: str) -> bool:
+        return name in self.layers
+
     def allows(self, source_layer: str, target_layer: str) -> bool:
         """Whether a dependency source_layer -> target_layer is legal."""
         src = self.layers.get(source_layer)

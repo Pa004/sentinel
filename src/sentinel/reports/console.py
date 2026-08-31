@@ -39,4 +39,12 @@ def render_console(result: AnalysisResult, console: Console | None = None) -> No
             origin,
         )
     console.print(table)
-    console.print(f"\nTotal: [bold]{len(result.violations)}[/bold] violations")
+    drift_color = (
+        "green" if result.drift <= 0.3
+        else "yellow" if result.drift <= 0.6
+        else "red"
+    )
+    console.print(f"Total: [bold]{len(result.violations)}[/bold] violations")
+    console.print(
+        f"Drift: [{drift_color}]{result.drift:.2f}[/{drift_color}]"
+    )

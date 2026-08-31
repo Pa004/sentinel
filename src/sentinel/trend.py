@@ -110,7 +110,12 @@ def build_trend(
             if key not in prev_keys:
                 introduced.append(key)
         points.append(
-            TrendPoint(commit=sha, counts=counts, introduced=sorted(introduced))
+            TrendPoint(
+                commit=sha,
+                counts=counts,
+                introduced=sorted(introduced),
+                drift=result.drift,
+            )
         )
         prev_keys = keys
     return points

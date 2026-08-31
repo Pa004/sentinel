@@ -6,6 +6,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from sentinel.analyzers.dependency_extractor import build_dependency_graph
+from sentinel.analyzers.drift import drift_score as compute_drift
 from sentinel.domain.graph import DependencyGraph
 from sentinel.domain.manifest import ArchitectureManifest
 from sentinel.domain.violations import Violation
@@ -33,9 +34,15 @@ REACT_MAX_PROPS = 8
 class AnalysisResult:
     """The result of running the violation engine over a repository."""
 
-    def __init__(self, graph: DependencyGraph, violations: list[Violation]) -> None:
+    def __init__(
+        self,
+        graph: DependencyGraph,
+        violations: list[Violation],
+        drift: float = 0.0,
+    ) -> None:
         self.graph = graph
         self.violations = violations
+        self.drift = drift
 
     def by_severity(self) -> dict[str, list[Violation]]:
         result: dict[str, list[Violation]] = {}
@@ -120,7 +127,8 @@ def analyze_repository(
     if git_root is not None:
         violations = _attach_commit_origins(violations, git_root)
     violations.sort(key=lambda v: (v.severity.value, v.rule, v.evidence))
-    return AnalysisResult(graph, violations)
+    drift = compute_drift(graph, mapper, manifest, root)
+    return AnalysisResult(graph, violations, drift=drift.score)
 
 
 def analyze_repository_from_manifest(root: Path, manifest_path: Path) -> AnalysisResult:

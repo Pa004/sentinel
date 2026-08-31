@@ -106,7 +106,10 @@ def trend(
     for point in points:
         joined = ", ".join(f"{kind.value}={count}" for kind, count in point.counts.items())
         parts = joined or "clean"
-        console.print(f"{point.commit[:8]}  {parts}")
+        console.print(
+            f"{point.commit[:8]}  {parts}  "
+            f"drift={point.drift:.2f}"
+        )
         if point.introduced:
             for item in point.introduced:
                 console.print(f"      introduced: {item}")
@@ -178,7 +181,11 @@ def report(
     # Build trend data from git history
     points = build_trend(repo, man)
     trend_data = [
-        {"commit": p.commit, "counts": {k.value: v for k, v in p.counts.items()}}
+        {
+            "commit": p.commit,
+            "counts": {k.value: v for k, v in p.counts.items()},
+            "drift": p.drift,
+        }
         for p in points
     ]
 
@@ -187,6 +194,7 @@ def report(
         violations=result.violations,
         trend_data=trend_data,
         meta=f"Repo: {repo} | Commit: {commit[:8]} | Violations: {len(result.violations)}",
+        drift=result.drift,
     )
     console.print(f"Report written to {output}")
 
