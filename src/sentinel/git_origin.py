@@ -29,6 +29,20 @@ def find_git_root(path: Path) -> Path | None:
         current = current.parent
 
 
+def head_commit_sha(git_root: Path) -> str | None:
+    """SHA of the HEAD commit in the repository."""
+    proc = run(
+        ["git", "-C", str(git_root), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return None
+    sha = proc.stdout.strip()
+    return sha or None
+
+
 def last_commit_sha(git_root: Path, relative_path: Path) -> str | None:
     """SHA of the most recent commit touching the file under `git_root`."""
     proc = run(

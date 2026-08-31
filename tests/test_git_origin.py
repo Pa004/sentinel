@@ -6,7 +6,7 @@ from pathlib import Path
 from subprocess import run
 
 from sentinel.domain.manifest import ArchitectureManifest, Layer
-from sentinel.git_origin import find_git_root, source_path_from_evidence
+from sentinel.git_origin import find_git_root, head_commit_sha, source_path_from_evidence
 from sentinel.violation_engine import analyze_repository
 
 MANIFEST = ArchitectureManifest(
@@ -75,3 +75,19 @@ def test_source_path_from_evidence(tmp_path: Path) -> None:
     path = source_path_from_evidence(evidence)
     assert path is not None
     assert path.name == "App.ts"
+
+
+def test_head_commit_sha_returns_current_head(tmp_path: Path) -> None:
+    repo = _make_repo(tmp_path, "initial commit")
+    sha = head_commit_sha(repo)
+    assert sha is not None
+    assert len(sha) == 40
+    proc = run(
+        ["git", "-C", str(repo), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=True,
+    )
+    assert sha == proc.stdout.strip()
+
+
+def test_head_commit_sha_non_git_dir(tmp_path: Path) -> None:
+    assert head_commit_sha(tmp_path) is None

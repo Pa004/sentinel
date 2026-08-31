@@ -37,7 +37,7 @@ def analyze(
 ) -> None:
     """Analyze a repository and report architectural violations."""
     from sentinel.domain.manifest import ArchitectureManifest
-    from sentinel.git_origin import find_git_root, last_commit_sha
+    from sentinel.git_origin import find_git_root, head_commit_sha
     from sentinel.manifest.loader import load_manifest
     from sentinel.violation_engine import analyze_repository
 
@@ -55,7 +55,7 @@ def analyze(
         from sentinel.persistence.store import ArchitectureStore
 
         db_path = db if db is not None else repo / DEFAULT_DB
-        commit = last_commit_sha(repo) or "n/a"
+        commit = head_commit_sha(git_root) or "n/a"
         store = ArchitectureStore(db_path)
         try:
             run_id = store.save_run(
@@ -164,7 +164,7 @@ def report(
 ) -> None:
     """Generate a self-contained HTML report with violations and trend charts."""
     from sentinel.domain.manifest import ArchitectureManifest
-    from sentinel.git_origin import find_git_root, last_commit_sha
+    from sentinel.git_origin import find_git_root, head_commit_sha
     from sentinel.manifest.loader import load_manifest
     from sentinel.reports.html_report import write_report
     from sentinel.trend import build_trend
@@ -173,7 +173,7 @@ def report(
     man: ArchitectureManifest = load_manifest(manifest)
     git_root = find_git_root(repo)
     result = analyze_repository(repo, man, git_root=git_root)
-    commit = last_commit_sha(repo) or "n/a"
+    commit = head_commit_sha(git_root) or "n/a"
 
     # Build trend data from git history
     points = build_trend(repo, man)
