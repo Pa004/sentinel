@@ -199,5 +199,25 @@ def report(
     console.print(f"Report written to {output}")
 
 
+@app.command()
+def serve(
+    repo: Path = typer.Argument(..., help="Repository path to serve"),  # noqa: B008
+    manifest: Path = typer.Option(  # noqa: B008
+        ...,
+        "--manifest",
+        "-m",
+        help="Architecture manifest YAML path",
+    ),
+    host: str = typer.Option("127.0.0.1", "--host", help="Server host"),  # noqa: B008
+    port: int = typer.Option(8000, "--port", help="Server port"),  # noqa: B008
+    db: Path | None = typer.Option(None, "--db", help="Override SQLite database path"),  # noqa: B008
+) -> None:
+    """Start a lightweight web server with the analysis report and API."""
+    from sentinel.server import run_server
+
+    db_path = db if db is not None else repo / DEFAULT_DB
+    run_server(repo=repo, manifest_path=manifest, host=host, port=port, db=db_path)
+
+
 if __name__ == "__main__":
     app()
