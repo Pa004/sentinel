@@ -105,6 +105,8 @@ class SentinelHandler(BaseHTTPRequestHandler):
             self._handle_runs_list()
         elif path.startswith("/api/runs/"):
             self._handle_run_detail(path)
+        elif path == "/api/trend":
+            self._handle_trend()
         elif path == "/api/report.json":
             self._handle_report_json()
         elif path == "/favicon.ico":
@@ -217,6 +219,27 @@ class SentinelHandler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(body)
+        except Exception as exc:  # noqa: BLE001
+            _json_response(self, {"error": str(exc)}, 500)
+
+    def _handle_trend(self) -> None:
+        try:
+            from sentinel.domain.manifest import ArchitectureManifest
+            from sentinel.manifest.loader import load_manifest
+            from sentinel.trend import build_trend
+
+            man: ArchitectureManifest = load_manifest(self.manifest_path)
+            points = build_trend(self.repo, man)
+            trend_data = [
+                {
+                    "commit": p.commit,
+                    "counts": {k.value: v for k, v in p.counts.items()},
+                    "introduced": p.introduced,
+                    "drift": p.drift,
+                }
+                for p in points
+            ]
+            _json_response(self, trend_data, 200)
         except Exception as exc:  # noqa: BLE001
             _json_response(self, {"error": str(exc)}, 500)
 
