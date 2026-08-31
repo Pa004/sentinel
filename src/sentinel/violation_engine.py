@@ -20,11 +20,14 @@ from sentinel.rules.god_module import GodModuleRule
 from sentinel.rules.high_coupling import HighCouplingRule
 from sentinel.rules.layer_violation import LayerViolationRule
 from sentinel.rules.low_cohesion import LowCohesionRule
+from sentinel.rules.react_component import ReactComponentRule
 
 GOD_MODULE_DEFAULT = 10
 HIGH_COUPLING_DEFAULT = 8
 LOW_COHESION_THRESHOLD = 0.3
 LOW_COHESION_MIN_SYMBOLS = 5
+REACT_MAX_LINES = 150
+REACT_MAX_PROPS = 8
 
 
 class AnalysisResult:
@@ -65,6 +68,10 @@ def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
             ),
         ),
         BoundaryCrossingRule(),
+        ReactComponentRule(
+            max_lines=manifest.rule_threshold("react_max_lines", REACT_MAX_LINES),
+            max_props=manifest.rule_threshold("react_max_props", REACT_MAX_PROPS),
+        ),
     )
 
 
