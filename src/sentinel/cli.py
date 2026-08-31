@@ -211,12 +211,13 @@ def serve(
     host: str = typer.Option("127.0.0.1", "--host", help="Server host"),  # noqa: B008
     port: int = typer.Option(8000, "--port", help="Server port"),  # noqa: B008
     db: Path | None = typer.Option(None, "--db", help="Override SQLite database path"),  # noqa: B008
+    react: bool = typer.Option(False, "--react", help="Serve React dashboard from frontend/dist"),  # noqa: B008
 ) -> None:
     """Start a lightweight web server with the analysis report and API."""
     from sentinel.server import run_server
 
     db_path = db if db is not None else repo / DEFAULT_DB
-    run_server(repo=repo, manifest_path=manifest, host=host, port=port, db=db_path)
+    run_server(repo=repo, manifest_path=manifest, host=host, port=port, db=db_path, react=react)
 
 
 if __name__ == "__main__":
