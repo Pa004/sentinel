@@ -98,7 +98,7 @@ class TestIndex:
     def test_returns_html(self, server_empty: int) -> None:
         status, body = _get(server_empty, "/")
         assert status == 200
-        assert "id=\"violationsTable\"" in body
+        assert 'id="violationsTable"' in body
 
     def test_contains_doctype(self, server_empty: int) -> None:
         status, body = _get(server_empty, "/")
@@ -186,4 +186,3 @@ class TestMisc:
         status, body = _get(server_bad, "/")
         assert status == 200
         assert "violationsTable" in body
-

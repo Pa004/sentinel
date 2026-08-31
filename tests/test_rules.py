@@ -165,9 +165,7 @@ def test_low_cohesion_detected(tmp_path: Path) -> None:
     for i in range(6):
         (root / f"dep_{i}.py").write_text("", encoding="utf-8")
     graph, mapper = _setup(root)
-    violations = LowCohesionRule(threshold=0.5, min_symbols=3).check(
-        graph, MANIFEST, mapper, root
-    )
+    violations = LowCohesionRule(threshold=0.5, min_symbols=3).check(graph, MANIFEST, mapper, root)
     assert any(v.kind is ViolationKind.LOW_COHESION for v in violations)
 
 
@@ -176,7 +174,5 @@ def test_low_cohesion_not_flagged_for_few_symbols(tmp_path: Path) -> None:
     root.mkdir()
     (root / "small.py").write_text("def a(): pass\ndef b(): pass\n", encoding="utf-8")
     graph, mapper = _setup(root)
-    violations = LowCohesionRule(threshold=0.5, min_symbols=5).check(
-        graph, MANIFEST, mapper, root
-    )
+    violations = LowCohesionRule(threshold=0.5, min_symbols=5).check(graph, MANIFEST, mapper, root)
     assert violations == []

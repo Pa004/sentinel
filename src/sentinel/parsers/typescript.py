@@ -29,16 +29,16 @@ class TypeScriptParser(ParserBase):
             if name_node is None:
                 continue
             symbols.append(
-                    Symbol(
-                        name_node.text.decode("utf-8"),
-                        SymbolKind.CLASS,
-                        SourceLocation(
-                            file,
-                            declaration.start_point[0] + 1,
-                            declaration.start_point[1] + 1,
-                        ),
-                        self.language,
-                    )
+                Symbol(
+                    name_node.text.decode("utf-8"),
+                    SymbolKind.CLASS,
+                    SourceLocation(
+                        file,
+                        declaration.start_point[0] + 1,
+                        declaration.start_point[1] + 1,
+                    ),
+                    self.language,
+                )
             )
         for func in _function_declarations(tree):
             name_node = func.child_by_field_name("name")

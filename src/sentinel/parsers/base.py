@@ -33,12 +33,10 @@ class ParserBase(ABC):
 
     @property
     @abstractmethod
-    def language(self) -> Language:
-        ...
+    def language(self) -> Language: ...
 
     @abstractmethod
-    def _build_parser(self) -> Parser:
-        ...
+    def _build_parser(self) -> Parser: ...
 
     @abstractmethod
     def extract_symbols(self, tree: Node, file: Path) -> list[Symbol]:

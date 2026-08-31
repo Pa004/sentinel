@@ -16,15 +16,14 @@ MANIFEST = ArchitectureManifest(
     }
 )
 
+
 # Package layout as a temp dir: hub.py imported by 6 consumers.
 def _write_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "repo"
     (repo / "pkg").mkdir(parents=True)
     (repo / "pkg" / "hub.py").write_text("def hub(): pass\n", encoding="utf-8")
     for i in range(6):
-        (repo / "pkg" / f"consumer{i}.py").write_text(
-            "from hub import hub\n", encoding="utf-8"
-        )
+        (repo / "pkg" / f"consumer{i}.py").write_text("from hub import hub\n", encoding="utf-8")
     return repo
 
 

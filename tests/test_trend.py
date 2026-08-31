@@ -25,9 +25,7 @@ def _make_evolving_repo(base: Path) -> Path:
     good.parent.mkdir(parents=True)
     good.write_text("import { svc } from '../application/service';\n", encoding="utf-8")
     (repo / "application" / "service.ts").parent.mkdir(exist_ok=True)
-    (repo / "application" / "service.ts").write_text(
-        "export function svc() {}\n", encoding="utf-8"
-    )
+    (repo / "application" / "service.ts").write_text("export function svc() {}\n", encoding="utf-8")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "good architecture")
 

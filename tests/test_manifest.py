@@ -80,11 +80,7 @@ def test_mapper_fallback_to_first_segment(tmp_path: Path) -> None:
 
 def test_load_manifest_with_rules(tmp_path: Path) -> None:
     yaml_text = VALID_YAML + (
-        "rules:\n"
-        "  god_module:\n"
-        "    threshold: 12\n"
-        "  high_coupling:\n"
-        "    threshold: 5\n"
+        "rules:\n  god_module:\n    threshold: 12\n  high_coupling:\n    threshold: 5\n"
     )
     p = tmp_path / "manifest.yaml"
     p.write_text(yaml_text, encoding="utf-8")

@@ -106,10 +106,7 @@ def trend(
     for point in points:
         joined = ", ".join(f"{kind.value}={count}" for kind, count in point.counts.items())
         parts = joined or "clean"
-        console.print(
-            f"{point.commit[:8]}  {parts}  "
-            f"drift={point.drift:.2f}"
-        )
+        console.print(f"{point.commit[:8]}  {parts}  drift={point.drift:.2f}")
         if point.introduced:
             for item in point.introduced:
                 console.print(f"      introduced: {item}")
@@ -130,6 +127,7 @@ def history(
     store = ArchitectureStore(db_path)
     try:
         import json as _json
+
         runs = store.list_runs()
         if not runs:
             console.print("No runs stored yet.")
@@ -141,8 +139,7 @@ def history(
             parts = ", ".join(f"{k}={v}" for k, v in sorted(_json.loads(counts).items()))
             date = run["ts"][:10]
             console.print(
-                f"{run['id']:>5}  {run['commit_sha'][:8]:>8}  "
-                f"{date:>10}  {parts or 'clean'}"
+                f"{run['id']:>5}  {run['commit_sha'][:8]:>8}  {date:>10}  {parts or 'clean'}"
             )
     finally:
         store.close()

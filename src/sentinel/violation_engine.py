@@ -54,10 +54,7 @@ class AnalysisResult:
 
 def _default_layer_rules(manifest: ArchitectureManifest) -> tuple[LayerRule, ...]:
     """Derive a rule per manifest layer mapping its directory (same name)."""
-    return tuple(
-        LayerRule(name, (f"{name}/",))
-        for name in manifest.layer_names()
-    )
+    return tuple(LayerRule(name, (f"{name}/",)) for name in manifest.layer_names())
 
 
 def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
@@ -68,9 +65,7 @@ def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
         GodModuleRule(manifest.rule_threshold("god_module", GOD_MODULE_DEFAULT)),
         HighCouplingRule(manifest.rule_threshold("high_coupling", HIGH_COUPLING_DEFAULT)),
         LowCohesionRule(
-            threshold=manifest.rule_threshold(
-                "low_cohesion", LOW_COHESION_THRESHOLD
-            ),
+            threshold=manifest.rule_threshold("low_cohesion", LOW_COHESION_THRESHOLD),
             min_symbols=manifest.rule_threshold(
                 "low_cohesion_min_symbols", LOW_COHESION_MIN_SYMBOLS
             ),
@@ -84,9 +79,7 @@ def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
     )
 
 
-def _attach_commit_origins(
-    violations: list[Violation], git_root: Path
-) -> list[Violation]:
+def _attach_commit_origins(violations: list[Violation], git_root: Path) -> list[Violation]:
     """Fill in the commit where each violation's source file was last changed."""
 
     def with_commit(v: Violation) -> Violation:

@@ -71,7 +71,7 @@ def test_find_git_root_walks_up(tmp_path: Path) -> None:
 
 
 def test_source_path_from_evidence(tmp_path: Path) -> None:
-    evidence = rf"{tmp_path}\src\App.ts:3 -> {tmp_path}\domain\db.ts (x)"
+    evidence = f"{tmp_path}/src/App.ts:3 -> {tmp_path}/domain/db.ts (x)"
     path = source_path_from_evidence(evidence)
     assert path is not None
     assert path.name == "App.ts"
@@ -98,7 +98,9 @@ def test_head_commit_sha_returns_current_head(tmp_path: Path) -> None:
     assert len(sha) == 40
     proc = run(
         ["git", "-C", str(repo), "rev-parse", "HEAD"],
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     assert sha == proc.stdout.strip()
 

@@ -443,15 +443,9 @@ def render_report(
     warnings = sum(1 for v in violations if v.severity.value == "warning")
     infos = sum(1 for v in violations if v.severity.value == "info")
     total = len(violations)
-    drift_cls = (
-        "drift-green" if drift <= 0.3
-        else "drift-yellow" if drift <= 0.6
-        else "drift-red"
-    )
+    drift_cls = "drift-green" if drift <= 0.3 else "drift-yellow" if drift <= 0.6 else "drift-red"
 
-    violations_json = json.dumps(
-        [_violation_to_dict(v) for v in violations]
-    ).replace("</", "<\\/")
+    violations_json = json.dumps([_violation_to_dict(v) for v in violations]).replace("</", "<\\/")
 
     trend_json = json.dumps(trend_data or []).replace("</", "<\\/")
     return _TEMPLATE.format(
@@ -476,7 +470,5 @@ def write_report(
     drift: float = 0.0,
 ) -> None:
     """Write an HTML report to `output`."""
-    html = render_report(
-        violations=violations, trend_data=trend_data, meta=meta, drift=drift
-    )
+    html = render_report(violations=violations, trend_data=trend_data, meta=meta, drift=drift)
     output.write_text(html, encoding="utf-8")
