@@ -45,8 +45,10 @@ class DependencyExtractor:
         self._root = _project_root(files)
         self._by_stem: dict[str, Path] = {}
         self._by_posix: dict[str, Path] = {}
+        self._by_resolved: dict[Path, Path] = {}
         for file in sorted(files, key=lambda f: f.as_posix()):
             self._by_stem.setdefault(file.stem, file)
+            self._by_resolved[file.resolve()] = file
             try:
                 rel = file.relative_to(self._root)
             except ValueError:
@@ -101,6 +103,9 @@ class DependencyExtractor:
             p = candidate.with_suffix(suffix)
             if p in self._files:
                 return p
+            resolved = self._by_resolved.get(p.resolve())
+            if resolved is not None:
+                return resolved
         return None
 
 

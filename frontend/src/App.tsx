@@ -35,8 +35,17 @@ export default function App() {
       .then((r) => r.json())
       .then((data: Run[]) => {
         setRuns(data);
-        if (data.length > 0) setSelectedRun(data[0].id);
-        setLoading(false);
+        if (data.length > 0) {
+          setSelectedRun(data[0].id);
+        } else {
+          fetch(`${API}/api/report.json`)
+            .then((r) => r.json())
+            .then((report: { violations: Violation[] }) => {
+              setViolations(report.violations);
+              setLoading(false);
+            })
+            .catch(() => setLoading(false));
+        }
       })
       .catch(() => setLoading(false));
   }, []);
@@ -78,9 +87,11 @@ export default function App() {
 
   if (loading) return <div style={{ padding: 24, color: "#8b949e" }}>Loading...</div>;
 
+  const liveMode = runs.length === 0 && violations.length > 0;
+
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "system-ui, sans-serif", background: "#0d1117", color: "#c9d1d9", minHeight: "100vh" }}>
-      <h1 style={{ fontSize: "1.4rem", marginBottom: 8 }}>Sentinel Dashboard</h1>
+      <h1 style={{ fontSize: "1.4rem", marginBottom: 8 }}>Sentinel Dashboard{liveMode ? " — Live Analysis" : ""}</h1>
 
       {/* Run selector */}
       <div style={{ marginBottom: 16 }}>
