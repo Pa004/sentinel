@@ -3,7 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
-dist/
 build/
 *.egg
 .venv/
@@ -50,3 +49,7 @@ Thumbs.db
 # Markdown: only README.md is versioned
 *.md
 !README.md
+
+# Frontend (React dashboard)
+frontend/node_modules/
+frontend/dist/

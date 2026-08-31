@@ -58,6 +58,7 @@ class SentinelHandler(BaseHTTPRequestHandler):
     repo: Path
     manifest_path: Path
     db: Path
+    react_dist: Path | None = None
 
     def _store(self) -> ArchitectureStore:
         return ArchitectureStore(self.db)
@@ -112,15 +113,55 @@ class SentinelHandler(BaseHTTPRequestHandler):
             self.send_response(204)
             self.send_header("Content-Length", "0")
             self.end_headers()
+        elif self.react_dist is not None:
+            self._serve_static(path)
         else:
             _json_response(self, {"error": "Not found"}, 404)
 
     def _handle_index(self) -> None:
+        if self.react_dist is not None:
+            self._serve_static("/")
+            return
         try:
             html = self._report_html()
             _html_response(self, html)
         except Exception as exc:  # noqa: BLE001
             _json_response(self, {"error": f"Failed to generate report: {exc}"}, 500)
+
+    _MIME_TYPES: dict[str, str] = {
+        ".html": "text/html; charset=utf-8",
+        ".js": "application/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+        ".json": "application/json; charset=utf-8",
+        ".png": "image/png",
+        ".svg": "image/svg+xml",
+        ".ico": "image/x-icon",
+    }
+
+    def _serve_static(self, path: str) -> None:
+        """Serve a file from react_dist, falling back to index.html for SPA routing."""
+        if self.react_dist is None:
+            _json_response(self, {"error": "React dist not configured"}, 500)
+            return
+        file_path = self.react_dist / path.lstrip("/")
+        if not file_path.is_file():
+            # SPA fallback: serve index.html for client-side routing
+            file_path = self.react_dist / "index.html"
+        if not file_path.is_file():
+            _json_response(self, {"error": "Not found"}, 404)
+            return
+        suffix = file_path.suffix
+        content_type = self._MIME_TYPES.get(suffix, "application/octet-stream")
+        try:
+            body = file_path.read_bytes()
+        except OSError as exc:
+            _json_response(self, {"error": str(exc)}, 500)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def _handle_runs_list(self) -> None:
         if not self.db.exists():
@@ -192,11 +233,23 @@ def run_server(
     host: str,
     port: int,
     db: Path,
+    react: bool = False,
 ) -> None:
     """Start the Sentinel HTTP server."""
     SentinelHandler.repo = repo
     SentinelHandler.manifest_path = manifest_path
     SentinelHandler.db = db
+    if react:
+        dist = repo.parent / "frontend" / "dist"
+        if not dist.is_dir():
+            print(f"Warning: --react specified but {dist} does not exist.")
+            print("Run 'cd frontend && npm install && npm run build' first.")
+            SentinelHandler.react_dist = None
+        else:
+            SentinelHandler.react_dist = dist
+            print(f"Serving React dashboard from {dist}")
+    else:
+        SentinelHandler.react_dist = None
 
     with ThreadingHTTPServer((host, port), SentinelHandler) as server:
         print(f"Sentinel server running at http://{host}:{port}")
