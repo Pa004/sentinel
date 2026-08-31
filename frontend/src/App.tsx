@@ -45,6 +45,13 @@ interface TrendPoint {
   drift: number;
 }
 
+interface Summary {
+  runs: number;
+  total_violations: number;
+  by_kind: Record<string, number>;
+  by_severity: Record<string, number>;
+}
+
 const API = "";
 
 export default function App() {
@@ -53,11 +60,12 @@ export default function App() {
   const [violations, setViolations] = useState<Violation[]>([]);
   const [metrics, setMetrics] = useState<RunMetrics | null>(null);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [severityFilter, setSeverityFilter] = useState("");
   const [kindFilter, setKindFilter] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"violations" | "trend">("violations");
+  const [activeTab, setActiveTab] = useState<"violations" | "trend" | "summary">("violations");
 
   useEffect(() => {
     fetch(`${API}/api/runs`)
@@ -82,6 +90,11 @@ export default function App() {
     fetch(`${API}/api/trend`)
       .then((r) => r.json())
       .then((data: TrendPoint[]) => setTrend(data))
+      .catch(() => {});
+
+    fetch(`${API}/api/summary`)
+      .then((r) => r.json())
+      .then((data: Summary) => setSummary(data))
       .catch(() => {});
   }, []);
 
@@ -148,7 +161,7 @@ export default function App() {
 
       {/* Tab navigation */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {(["violations", "trend"] as const).map((tab) => (
+        {(["violations", "trend", "summary"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -346,6 +359,54 @@ export default function App() {
                   })}
                 </tbody>
               </table>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Summary tab */}
+      {activeTab === "summary" && (
+        <div>
+          {summary === null ? (
+            <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 40, textAlign: "center", color: "#8b949e" }}>
+              Loading summary...
+            </div>
+          ) : summary.runs === 0 ? (
+            <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 40, textAlign: "center", color: "#8b949e" }}>
+              No runs saved yet. Use <code style={{ background: "#21262d", padding: "2px 6px", borderRadius: 4 }}>sentinel analyze --save</code> to save analysis runs.
+            </div>
+          ) : (
+            <>
+              {/* Overview cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 20 }}>
+                {[
+                  { label: "Total Runs", value: summary.runs, color: "#58a6ff" },
+                  { label: "Total Violations", value: summary.total_violations, color: "#c9d1d9" },
+                  { label: "Errors", value: summary.by_severity["error"] ?? 0, color: "#f85149" },
+                  { label: "Warnings", value: summary.by_severity["warning"] ?? 0, color: "#d29922" },
+                  { label: "Info", value: summary.by_severity["info"] ?? 0, color: "#58a6ff" },
+                ].map((c) => (
+                  <div key={c.label} style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "16px 20px", textAlign: "center" }}>
+                    <div style={{ fontSize: "2rem", fontWeight: 700, color: c.color }}>{c.value}</div>
+                    <div style={{ fontSize: ".8rem", color: "#8b949e" }}>{c.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Violations by kind */}
+              <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
+                <h3 style={{ fontSize: ".9rem", marginBottom: 12, color: "#8b949e" }}>Violations by Kind (All Runs)</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+                  {Object.entries(summary.by_kind)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([kind, count]) => (
+                      <div key={kind} style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "1.5rem", fontWeight: 700, color: count > 0 ? "#d29922" : "#3fb950" }}>{count}</div>
+                        <div style={{ fontSize: ".7rem", color: "#8b949e" }}>{kind.replace(/_/g, " ")}</div>
+                      </div>
+                    ))}
+                </div>
+              </div>
             </>
           )}
         </div>

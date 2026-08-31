@@ -107,6 +107,8 @@ class SentinelHandler(BaseHTTPRequestHandler):
             self._handle_run_detail(path)
         elif path == "/api/trend":
             self._handle_trend()
+        elif path == "/api/summary":
+            self._handle_summary()
         elif path == "/api/report.json":
             self._handle_report_json()
         elif path == "/favicon.ico":
@@ -240,6 +242,41 @@ class SentinelHandler(BaseHTTPRequestHandler):
                 for p in points
             ]
             _json_response(self, trend_data, 200)
+        except Exception as exc:  # noqa: BLE001
+            _json_response(self, {"error": str(exc)}, 500)
+
+    def _handle_summary(self) -> None:
+        try:
+            if not self.db.exists():
+                _json_response(self, {"runs": 0, "violations": {}, "metrics": {}}, 200)
+                return
+            store = self._store()
+            try:
+                runs = store.list_runs()
+                all_violations: list[dict] = []
+                for run in runs:
+                    full = store.get_run(run["id"])
+                    if full:
+                        all_violations.extend(full.get("violations", []))
+            finally:
+                store.close()
+
+            kind_counts: dict[str, int] = {}
+            severity_counts: dict[str, int] = {}
+            for v in all_violations:
+                kind_counts[v["kind"]] = kind_counts.get(v["kind"], 0) + 1
+                severity_counts[v["severity"]] = severity_counts.get(v["severity"], 0) + 1
+
+            _json_response(
+                self,
+                {
+                    "runs": len(runs),
+                    "total_violations": len(all_violations),
+                    "by_kind": kind_counts,
+                    "by_severity": severity_counts,
+                },
+                200,
+            )
         except Exception as exc:  # noqa: BLE001
             _json_response(self, {"error": str(exc)}, 500)
 
