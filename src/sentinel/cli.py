@@ -49,5 +49,33 @@ def graph(
             console.print(f"{dep.source} -> {dep.target}  ({dep.evidence})")
 
 
+@app.command()
+def trend(
+    repo: Path = typer.Argument(..., help="Repository path"),  # noqa: B008
+    manifest: Path = typer.Option(  # noqa: B008
+        ...,
+        "--manifest",
+        "-m",
+        help="Architecture manifest YAML path",
+    ),
+    since: str | None = typer.Option(None, "--from", help="Start commit SHA"),  # noqa: B008
+    until: str | None = typer.Option(None, "--to", help="End commit SHA"),  # noqa: B008
+) -> None:
+    """Report architectural regression across a commit range."""
+    from sentinel.domain.manifest import ArchitectureManifest
+    from sentinel.manifest.loader import load_manifest
+    from sentinel.trend import build_trend
+
+    man: ArchitectureManifest = load_manifest(manifest)
+    points = build_trend(repo, man, since=since, until=until)
+    if not points:
+        console.print("No commits in range to analyze.")
+        return
+    for point in points:
+        joined = ", ".join(f"{kind.value}={count}" for kind, count in point.counts.items())
+        parts = joined or "clean"
+        console.print(f"{point.commit[:8]}  {parts}")
+
+
 if __name__ == "__main__":
     app()
