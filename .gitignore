@@ -42,3 +42,7 @@ Thumbs.db
 # Project-specific
 *.tmp
 *.bak
+
+# Markdown: only README.md is versioned
+*.md
+!README.md

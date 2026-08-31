@@ -53,6 +53,9 @@ layers:
 - **Circular dependency** — a strongly-connected cycle across modules (Tarjan SCC).
 - **God module** — a module with an excessive fan-in (too many dependents).
 
+Every violation reports the **origin commit** (the last commit that touched the source
+file carrying the offending dependency) when the analyzed path lives inside a git repo.
+
 ## Development
 
 ```bash

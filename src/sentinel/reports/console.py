@@ -24,16 +24,19 @@ def render_console(result: AnalysisResult, console: Console | None = None) -> No
     table.add_column("Evidence")
     table.add_column("Impact")
     table.add_column("Recommendation")
+    table.add_column("Origin commit")
 
     severity_color = {"error": "red", "warning": "yellow", "info": "cyan"}
     for v in result.violations:
         color = severity_color.get(v.severity.value, "white")
+        origin = f"{v.commit[:8]}" if v.commit else "n/a"
         table.add_row(
             f"[{color}]{v.severity.value}[/{color}]",
             v.rule,
             v.evidence,
             v.impact,
             v.recommendation,
+            origin,
         )
     console.print(table)
     console.print(f"\nTotal: [bold]{len(result.violations)}[/bold] violations")
