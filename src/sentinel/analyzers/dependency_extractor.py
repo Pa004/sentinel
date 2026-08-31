@@ -26,7 +26,7 @@ EXTERNAL_LIBS = {
     "functools",
 }
 
-_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".py")
+_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".py", ".cs", ".java")
 
 
 class DependencyExtractor:

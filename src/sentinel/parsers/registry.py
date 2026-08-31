@@ -6,6 +6,8 @@ from pathlib import Path
 
 from sentinel.domain.symbols import Language
 from sentinel.parsers.base import ParserBase
+from sentinel.parsers.csharp import CSharpParser
+from sentinel.parsers.java import JavaParser
 from sentinel.parsers.python_lang import PythonParser
 from sentinel.parsers.typescript import TypeScriptParser
 
@@ -28,6 +30,8 @@ _EXTENSION_TO_PARSER: dict[str, ParserBase] = {
     ".js": TypeScriptParser(),
     ".jsx": TypeScriptParser(),
     ".py": PythonParser(),
+    ".cs": CSharpParser(),
+    ".java": JavaParser(),
 }
 
 _EXTENSION_TO_LANGUAGE: dict[str, Language] = {
@@ -36,6 +40,8 @@ _EXTENSION_TO_LANGUAGE: dict[str, Language] = {
     ".js": Language.TYPESCRIPT,
     ".jsx": Language.TYPESCRIPT,
     ".py": Language.PYTHON,
+    ".cs": Language.CSHARP,
+    ".java": Language.JAVA,
 }
 
 
