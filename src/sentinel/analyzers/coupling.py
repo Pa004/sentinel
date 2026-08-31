@@ -13,9 +13,13 @@ def fan_out(graph: DependencyGraph, file: Path) -> int:
 
 
 def fan_in(graph: DependencyGraph, file: Path) -> int:
-    """Number of distinct modules that depend on a file."""
-    targets = {dep.target for source in graph.nodes() for dep in graph.dependencies_of(source)}
-    return 1 if file in targets else 0
+    """Number of modules that depend on a file."""
+    count = 0
+    for source in graph.nodes():
+        for dep in graph.dependencies_of(source):
+            if dep.target == file:
+                count += 1
+    return count
 
 
 def coupling_scores(graph: DependencyGraph) -> dict[Path, int]:

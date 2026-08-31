@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+VALID_RULE_KEYS = {"god_module", "high_coupling"}
 
 
 @dataclass(frozen=True)
@@ -18,9 +20,13 @@ class Layer:
 
 @dataclass(frozen=True)
 class ArchitectureManifest:
-    """The declared target architecture: layers and their allowed edges."""
+    """The declared target architecture: layers and their allowed edges.
+
+    `rules` holds optional per-rule tuning, e.g. {"god_module": {"threshold": 12}}.
+    """
 
     layers: dict[str, Layer]
+    rules: dict[str, dict[str, int]] = field(default_factory=dict)
 
     def layer_names(self) -> tuple[str, ...]:
         return tuple(self.layers.keys())
@@ -37,3 +43,6 @@ class ArchitectureManifest:
         if tgt is None:
             return True
         return src.may_depend_on_layer(target_layer)
+
+    def rule_threshold(self, rule_key: str, default: int) -> int:
+        return int(self.rules.get(rule_key, {}).get("threshold", default))

@@ -16,13 +16,11 @@ from sentinel.parsers.registry import source_files
 from sentinel.rules.base import Rule
 from sentinel.rules.circular import CircularDependencyRule
 from sentinel.rules.god_module import GodModuleRule
+from sentinel.rules.high_coupling import HighCouplingRule
 from sentinel.rules.layer_violation import LayerViolationRule
 
-DEFAULT_RULES: tuple[Rule, ...] = (
-    LayerViolationRule(),
-    CircularDependencyRule(),
-    GodModuleRule(),
-)
+GOD_MODULE_DEFAULT = 10
+HIGH_COUPLING_DEFAULT = 8
 
 
 class AnalysisResult:
@@ -44,6 +42,16 @@ def _default_layer_rules(manifest: ArchitectureManifest) -> tuple[LayerRule, ...
     return tuple(
         LayerRule(name, (f"{name}/",))
         for name in manifest.layer_names()
+    )
+
+
+def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
+    """Build the standard rule set, honoring per-rule thresholds from the manifest."""
+    return (
+        LayerViolationRule(),
+        CircularDependencyRule(),
+        GodModuleRule(manifest.rule_threshold("god_module", GOD_MODULE_DEFAULT)),
+        HighCouplingRule(manifest.rule_threshold("high_coupling", HIGH_COUPLING_DEFAULT)),
     )
 
 
@@ -73,13 +81,15 @@ def _attach_commit_origins(
 def analyze_repository(
     root: Path,
     manifest: ArchitectureManifest,
-    rules: tuple[Rule, ...] = DEFAULT_RULES,
+    rules: tuple[Rule, ...] | None = None,
     layer_rules: tuple[LayerRule, ...] | None = None,
     git_root: Path | None = None,
 ) -> AnalysisResult:
     """Run the full pipeline: parse files, build the graph, apply rules."""
     files = source_files(root)
     graph = build_dependency_graph(files)
+    if rules is None:
+        rules = _default_rules(manifest)
     if layer_rules is None:
         layer_rules = _default_layer_rules(manifest)
     mapper = LayerMapper(manifest, layer_rules)
