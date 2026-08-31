@@ -42,3 +42,12 @@ def render_console(result: AnalysisResult, console: Console | None = None) -> No
     drift_color = "green" if result.drift <= 0.3 else "yellow" if result.drift <= 0.6 else "red"
     console.print(f"Total: [bold]{len(result.violations)}[/bold] violations")
     console.print(f"Drift: [{drift_color}]{result.drift:.2f}[/{drift_color}]")
+    if result.metrics:
+        m = result.metrics
+        console.print(
+            f"Graph: {m.node_count} nodes, {m.edge_count} edges, avg coupling {m.avg_coupling:.1f}"
+        )
+        console.print(
+            f"Cycles: {m.cycle_count} | Layers: {m.layer_violation_count} | "
+            f"God modules: {m.god_module_count} | High coupling: {m.high_coupling_count}"
+        )

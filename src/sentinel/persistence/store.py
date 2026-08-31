@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS runs (
     repo_path     TEXT    NOT NULL,
     commit_sha    TEXT    NOT NULL,
     manifest_hash TEXT    NOT NULL,
-    counts        TEXT    NOT NULL DEFAULT '{}'
+    counts        TEXT    NOT NULL DEFAULT '{}',
+    metrics       TEXT    NOT NULL DEFAULT '{}'
 );
 
 CREATE TABLE IF NOT EXISTS violations (
@@ -60,6 +61,7 @@ class ArchitectureStore:
         commit: str,
         manifest_hash: str,
         violations: list,
+        metrics: dict | None = None,
     ) -> int:
         """Insert a run with its violations. Returns the run id."""
         conn = self._connect()
@@ -68,9 +70,16 @@ class ArchitectureStore:
             counts[v.kind.value] = counts.get(v.kind.value, 0) + 1
         ts = datetime.now(UTC).isoformat()
         cur = conn.execute(
-            "INSERT INTO runs (ts, repo_path, commit_sha, manifest_hash, counts) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (ts, str(repo_path), commit, manifest_hash, json.dumps(counts)),
+            "INSERT INTO runs (ts, repo_path, commit_sha, manifest_hash, counts, metrics) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                ts,
+                str(repo_path),
+                commit,
+                manifest_hash,
+                json.dumps(counts),
+                json.dumps(metrics or {}),
+            ),
         )
         run_id = cur.lastrowid
         if run_id is None:

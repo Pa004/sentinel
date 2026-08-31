@@ -37,6 +37,7 @@ def _run_list_item(row: dict) -> dict[str, Any]:
         "ts": row["ts"],
         "repo_path": row["repo_path"],
         "counts": json.loads(row["counts"]) if row.get("counts") else {},
+        "metrics": json.loads(row["metrics"]) if row.get("metrics") else {},
     }
 
 
