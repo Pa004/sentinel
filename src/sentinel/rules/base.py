@@ -21,5 +21,4 @@ class Rule(ABC):
         manifest: ArchitectureManifest,
         mapper: LayerMapper,
         root: Path,
-    ) -> list[Violation]:
-        ...
+    ) -> list[Violation]: ...

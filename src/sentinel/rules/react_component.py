@@ -44,17 +44,10 @@ class ReactComponentRule(Rule):
                     Violation(
                         rule="react_oversized_component",
                         kind=ViolationKind.GOD_MODULE,
-                        evidence=(
-                            f"{component.name}: {component.line_count} lines"
-                        ),
+                        evidence=(f"{component.name}: {component.line_count} lines"),
                         components=(str(source),),
-                        impact=(
-                            f"Component exceeds {self._max_lines} lines, "
-                            "hard to maintain"
-                        ),
-                        recommendation=(
-                            f"Split {component.name} into smaller components"
-                        ),
+                        impact=(f"Component exceeds {self._max_lines} lines, hard to maintain"),
+                        recommendation=(f"Split {component.name} into smaller components"),
                         severity=Severity.WARNING,
                     )
                 )
@@ -63,17 +56,14 @@ class ReactComponentRule(Rule):
                     Violation(
                         rule="react_too_many_props",
                         kind=ViolationKind.HIGH_COUPLING,
-                        evidence=(
-                            f"{component.name}: {component.prop_count} props"
-                        ),
+                        evidence=(f"{component.name}: {component.prop_count} props"),
                         components=(str(source),),
                         impact=(
                             f"Component accepts more than {self._max_props} props, "
                             "indicates tight coupling"
                         ),
                         recommendation=(
-                            f"Reduce props for {component.name} using "
-                            "composition or context"
+                            f"Reduce props for {component.name} using composition or context"
                         ),
                         severity=Severity.WARNING,
                     )

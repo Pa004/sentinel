@@ -63,11 +63,15 @@ def test_list_runs_returns_all(tmp_path: Path) -> None:
     store = ArchitectureStore(tmp_path / "test.db")
     try:
         store.save_run(
-            repo_path=repo, commit="aaa11111", manifest_hash="h1",
+            repo_path=repo,
+            commit="aaa11111",
+            manifest_hash="h1",
             violations=result.violations,
         )
         store.save_run(
-            repo_path=repo, commit="bbb22222", manifest_hash="h2",
+            repo_path=repo,
+            commit="bbb22222",
+            manifest_hash="h2",
             violations=result.violations,
         )
         runs = store.list_runs()
@@ -88,6 +92,7 @@ def test_counts_aggregated_per_kind(tmp_path: Path) -> None:
         )
         run = store.get_run(run_id)
         import json
+
         counts = json.loads(run["counts"])
         total = sum(counts.values())
         assert total == len(result.violations)

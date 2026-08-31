@@ -86,10 +86,7 @@ class SentinelHandler(BaseHTTPRequestHandler):
             ]
         except (RuntimeError, OSError):
             pass
-        meta = (
-            f"Repo: {self.repo}"
-            f" | Violations: {len(result.violations)}"
-        )
+        meta = f"Repo: {self.repo} | Violations: {len(result.violations)}"
         return render_report(
             violations=result.violations,
             trend_data=trend_data,

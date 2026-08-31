@@ -15,9 +15,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _make_mapper(manifest: ArchitectureManifest, root: Path) -> LayerMapper:
-    rules = tuple(
-        LayerRule(name, (f"{name}/",)) for name in manifest.layer_names()
-    )
+    rules = tuple(LayerRule(name, (f"{name}/",)) for name in manifest.layer_names())
     return LayerMapper(manifest, rules)
 
 

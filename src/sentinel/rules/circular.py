@@ -36,8 +36,7 @@ class CircularDependencyRule(Rule):
                     components=tuple(str(p) for p in sorted(comp)),
                     impact="mutual imports make modules hard to reason about, test and evolve",
                     recommendation=(
-                        "break the cycle by extracting a shared dependency "
-                        "or inverting one edge"
+                        "break the cycle by extracting a shared dependency or inverting one edge"
                     ),
                     severity=Severity.WARNING,
                 )
