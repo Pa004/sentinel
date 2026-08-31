@@ -10,7 +10,6 @@ from rich.console import Console
 from sentinel.analyzers.dependency_extractor import build_dependency_graph
 from sentinel.parsers.registry import source_files
 from sentinel.reports.json import serialize
-from sentinel.violation_engine import analyze_repository_from_manifest
 
 app = typer.Typer(help="Architecture erosion detector — intended vs observed.")
 console = Console()
@@ -28,7 +27,14 @@ def analyze(
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),  # noqa: B008
 ) -> None:
     """Analyze a repository and report architectural violations."""
-    result = analyze_repository_from_manifest(repo, manifest)
+    from sentinel.domain.manifest import ArchitectureManifest
+    from sentinel.git_origin import find_git_root
+    from sentinel.manifest.loader import load_manifest
+    from sentinel.violation_engine import analyze_repository
+
+    man: ArchitectureManifest = load_manifest(manifest)
+    git_root = find_git_root(repo)
+    result = analyze_repository(repo, man, git_root=git_root)
     if json_output:
         console.print(serialize(result))
     else:

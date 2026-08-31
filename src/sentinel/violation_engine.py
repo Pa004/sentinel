@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from sentinel.analyzers.dependency_extractor import build_dependency_graph
 from sentinel.domain.graph import DependencyGraph
 from sentinel.domain.manifest import ArchitectureManifest
 from sentinel.domain.violations import Violation
+from sentinel.git_origin import last_commit_sha, source_path_from_evidence
 from sentinel.manifest.loader import load_manifest
 from sentinel.manifest.mapper import LayerMapper, LayerRule
 from sentinel.parsers.registry import source_files
@@ -45,11 +47,35 @@ def _default_layer_rules(manifest: ArchitectureManifest) -> tuple[LayerRule, ...
     )
 
 
+def _attach_commit_origins(
+    violations: list[Violation], git_root: Path
+) -> list[Violation]:
+    """Fill in the commit where each violation's source file was last changed."""
+
+    def with_commit(v: Violation) -> Violation:
+        if v.commit is not None:
+            return v
+        source = source_path_from_evidence(v.evidence)
+        if source is None:
+            return v
+        try:
+            rel = source.relative_to(git_root)
+        except ValueError:
+            return v
+        sha = last_commit_sha(git_root, rel)
+        if sha is None:
+            return v
+        return replace(v, commit=sha)
+
+    return [with_commit(v) for v in violations]
+
+
 def analyze_repository(
     root: Path,
     manifest: ArchitectureManifest,
     rules: tuple[Rule, ...] = DEFAULT_RULES,
     layer_rules: tuple[LayerRule, ...] | None = None,
+    git_root: Path | None = None,
 ) -> AnalysisResult:
     """Run the full pipeline: parse files, build the graph, apply rules."""
     files = source_files(root)
@@ -61,6 +87,8 @@ def analyze_repository(
     violations: list[Violation] = []
     for rule in rules:
         violations.extend(rule.check(graph, manifest, mapper, root))
+    if git_root is not None:
+        violations = _attach_commit_origins(violations, git_root)
     violations.sort(key=lambda v: (v.severity.value, v.rule, v.evidence))
     return AnalysisResult(graph, violations)
 
