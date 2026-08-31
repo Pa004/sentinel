@@ -7,6 +7,7 @@ import threading
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from subprocess import run
 
 import pytest
 
@@ -186,3 +187,100 @@ class TestMisc:
         status, body = _get(server_bad, "/")
         assert status == 200
         assert "violationsTable" in body
+
+
+def _git(repo: Path, *args: str) -> None:
+    run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def _make_git_repo(base: Path) -> Path:
+    """Create a small git repo with two commits (good → bad) for trend testing."""
+    repo = base / "git_repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "test@test.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+
+    good = repo / "presentation" / "App.ts"
+    good.parent.mkdir(parents=True)
+    good.write_text("import { svc } from '../application/service';\n", encoding="utf-8")
+    (repo / "application" / "service.ts").parent.mkdir(exist_ok=True)
+    (repo / "application" / "service.ts").write_text("export function svc() {}\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "good architecture")
+
+    bad = repo / "presentation" / "App.ts"
+    bad.write_text("import { db } from '../domain/db';\nexport const x = db;\n", encoding="utf-8")
+    (repo / "domain" / "db.ts").parent.mkdir(exist_ok=True)
+    (repo / "domain" / "db.ts").write_text("export const db = {};\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "introduce layer regression")
+    return repo
+
+
+@pytest.fixture()
+def server_git(db_empty: Path):
+    """Server pointed at a git repo with trend history."""
+    git_repo = _make_git_repo(db_empty.parent)
+    srv, port = _start_server(db_empty, repo=git_repo)
+    yield port
+    srv.shutdown()
+
+
+class TestApiTrend:
+    def test_returns_list(self, server_git: int) -> None:
+        status, body = _get(server_git, "/api/trend")
+        assert status == 200
+        data = json.loads(body)
+        assert isinstance(data, list)
+        assert len(data) == 2
+
+    def test_point_shape(self, server_git: int) -> None:
+        status, body = _get(server_git, "/api/trend")
+        assert status == 200
+        data = json.loads(body)
+        point = data[0]
+        assert "commit" in point
+        assert "counts" in point
+        assert "introduced" in point
+        assert "drift" in point
+        assert isinstance(point["counts"], dict)
+        assert isinstance(point["introduced"], list)
+
+    def test_second_commit_has_regression(self, server_git: int) -> None:
+        status, body = _get(server_git, "/api/trend")
+        assert status == 200
+        data = json.loads(body)
+        assert data[0]["introduced"] == []
+        assert len(data[1]["introduced"]) > 0
+
+    def test_no_git_repo_returns_error(self, server_empty: int) -> None:
+        status, body = _get(server_empty, "/api/trend")
+        assert status == 500
+        data = json.loads(body)
+        assert "error" in data
+
+
+class TestApiSummary:
+    def test_empty_database(self, server_empty: int) -> None:
+        status, body = _get(server_empty, "/api/summary")
+        assert status == 200
+        data = json.loads(body)
+        assert data["runs"] == 0
+
+    def test_seeded_database(self, server_seeded: int) -> None:
+        status, body = _get(server_seeded, "/api/summary")
+        assert status == 200
+        data = json.loads(body)
+        assert data["runs"] == 1
+        assert data["total_violations"] > 0
+        assert isinstance(data["by_kind"], dict)
+        assert isinstance(data["by_severity"], dict)
+
+    def test_severity_keys(self, server_seeded: int) -> None:
+        status, body = _get(server_seeded, "/api/summary")
+        assert status == 200
+        data = json.loads(body)
+        severity_keys = set(data["by_severity"].keys())
+        assert severity_keys <= {"error", "warning", "info"}

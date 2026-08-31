@@ -65,7 +65,7 @@ export default function App() {
   const [kindFilter, setKindFilter] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"violations" | "trend" | "summary">("violations");
+  const [activeTab, setActiveTab] = useState<"violations" | "trend" | "summary" | "remediation">("violations");
 
   useEffect(() => {
     fetch(`${API}/api/runs`)
@@ -161,7 +161,7 @@ export default function App() {
 
       {/* Tab navigation */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {(["violations", "trend", "summary"] as const).map((tab) => (
+        {(["violations", "trend", "summary", "remediation"] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -407,6 +407,67 @@ export default function App() {
                     ))}
                 </div>
               </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Remediation tab */}
+      {activeTab === "remediation" && (
+        <div>
+          {violations.length === 0 ? (
+            <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 40, textAlign: "center", color: "#3fb950" }}>
+              No violations to remediate — architecture is clean.
+            </div>
+          ) : (
+            <>
+              {(["error", "warning", "info"] as const).map((sev) => {
+                const sevViolations = violations
+                  .filter((v) => v.severity === sev)
+                  .sort((a, b) => a.rule.localeCompare(b.rule));
+                if (sevViolations.length === 0) return null;
+                const color = sev === "error" ? "#f85149" : sev === "warning" ? "#d29922" : "#58a6ff";
+                return (
+                  <div key={sev} style={{ marginBottom: 24 }}>
+                    <h3 style={{ fontSize: ".9rem", marginBottom: 12, color, display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{
+                        display: "inline-block", width: 8, height: 8, borderRadius: "50%",
+                        background: color,
+                      }} />
+                      {sev.charAt(0).toUpperCase() + sev.slice(1)}s — {sevViolations.length}
+                    </h3>
+                    {sevViolations.map((v, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          background: "#161b22",
+                          border: `1px solid #30363d`,
+                          borderLeft: `3px solid ${color}`,
+                          borderRadius: 8,
+                          padding: "16px 20px",
+                          marginBottom: 10,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <span style={{ fontWeight: 600, fontSize: ".9rem" }}>{v.rule}</span>
+                          <span style={{ fontFamily: "monospace", fontSize: ".75rem", color: "#8b949e" }}>
+                            {v.commit?.slice(0, 8) ?? "n/a"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: ".8rem", color: "#8b949e", marginBottom: 6 }}>
+                          {v.evidence}
+                        </div>
+                        <div style={{ fontSize: ".85rem", marginBottom: 6 }}>
+                          <span style={{ color: "#8b949e" }}>Impact: </span>{v.impact}
+                        </div>
+                        <div style={{ fontSize: ".85rem", background: "#21262d", borderRadius: 6, padding: "8px 12px", borderLeft: `2px solid #3fb950` }}>
+                          <span style={{ color: "#3fb950", fontWeight: 600 }}>Recommendation: </span>{v.recommendation}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </>
           )}
         </div>
