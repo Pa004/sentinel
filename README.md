@@ -45,6 +45,9 @@ sentinel report <repo-path> --manifest <manifest.yaml> [-o report.html]
 
 # Serve the interactive report and REST API
 sentinel serve <repo-path> --manifest <manifest.yaml> [--port 8000] [--db <path>]
+
+# Serve the React dashboard instead of the inline HTML report
+sentinel serve <repo-path> --manifest <manifest.yaml> --react [--port 8000]
 ```
 
 ### REST API
@@ -62,6 +65,24 @@ The HTML report is interactive: filter by severity and kind, search, sort column
 export to CSV, copy commit SHAs, and switch between stored runs (when served by `sentinel serve`).
 Opened as a static file (`report.html` in `file://`), the report works exactly the same
 but omits the run selector since no API is available.
+
+### React dashboard (opt-in)
+
+Sentinel ships a React dashboard (`frontend/`) built with Vite + TypeScript.
+When served with `--react`, the server serves the pre-built dashboard at `GET /`
+instead of the inline HTML report, while keeping all API endpoints unchanged.
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+sentinel serve <repo-path> --manifest <manifest.yaml> --react
+```
+
+Features: run selector, severity/kind filters, text search, violation table with
+severity color coding, summary cards. Without `--react`, `sentinel serve` behaves
+as before (inline HTML report).
 
 ## Architecture manifest
 
