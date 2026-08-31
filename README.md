@@ -29,18 +29,24 @@ python -m venv .venv
 
 ```bash
 # Analyze a repository against an architecture manifest
-sentinel analyze <repo-path> --manifest <manifest.yaml> [--json]
+sentinel analyze <repo-path> --manifest <manifest.yaml> [--json] [--save]
 
 # Print the dependency graph
 sentinel graph <repo-path>
 
 # Detect architectural regression across a commit range
 sentinel trend <repo-path> --manifest <manifest.yaml> [--from <sha>] [--to <sha>]
+
+# Show stored analysis runs
+sentinel history <repo-path>
 ```
 
 The `trend` command reports violation counts per commit and flags **introduced
 violations** — architecture it first sees at a given commit (regression), printed
 with the offending file under each commit.
+
+Use `--save` to persist analysis results to a local SQLite database (`.sentinel/sentinel.db`),
+and `history` to review how violations evolve across runs.
 
 ## Architecture manifest
 
