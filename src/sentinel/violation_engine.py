@@ -17,6 +17,7 @@ from sentinel.parsers.registry import source_files
 from sentinel.rules.base import Rule
 from sentinel.rules.boundary_crossing import BoundaryCrossingRule
 from sentinel.rules.circular import CircularDependencyRule
+from sentinel.rules.database_leakage import DatabaseLeakageRule
 from sentinel.rules.god_module import GodModuleRule
 from sentinel.rules.high_coupling import HighCouplingRule
 from sentinel.rules.layer_violation import LayerViolationRule
@@ -79,6 +80,7 @@ def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
             max_lines=manifest.rule_threshold("react_max_lines", REACT_MAX_LINES),
             max_props=manifest.rule_threshold("react_max_props", REACT_MAX_PROPS),
         ),
+        DatabaseLeakageRule(),
     )
 
 
