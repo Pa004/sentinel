@@ -104,3 +104,30 @@ def test_write_report_creates_file(tmp_path: Path) -> None:
 def test_render_report_meta_shown() -> None:
     html = render_report(violations=VIOLATIONS, trend_data=TREND, meta="repo: sentinel")
     assert "repo: sentinel" in html
+
+
+def test_render_report_escapes_html_in_violations() -> None:
+    xss_violation = Violation(
+        rule="<script>alert(1)</script>",
+        kind=ViolationKind.LAYER_VIOLATION,
+        evidence='<img onerror="alert(1)" src=x>',
+        components=("<b>xss</b>",),
+        impact="<script>alert(1)</script>",
+        recommendation="<a href=javascript:alert(1)>click</a>",
+        severity=Severity.ERROR,
+        commit=None,
+    )
+    html = render_report(violations=[xss_violation], trend_data=[], meta="<b>repo</b>")
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html
+    assert "&lt;img" in html
+    assert "&lt;b&gt;repo&lt;/b&gt;" in html
+    # javascript: in href is rendered as text, not a clickable link
+    assert 'href="javascript:' not in html
+
+
+def test_render_report_escapes_script_in_trend() -> None:
+    malicious_trend = [{"commit": "</script><script>alert(1)</script>", "counts": {}}]
+    html = render_report(violations=[], trend_data=malicious_trend)
+    assert "</script><script>" not in html
+    assert "<\\/script>" in html

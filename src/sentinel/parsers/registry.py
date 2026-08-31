@@ -58,9 +58,11 @@ def is_ignored_directory(name: str) -> bool:
 
 
 def source_files(root: Path) -> tuple[Path, ...]:
-    """Return all supported source files under `root`, skipping ignored dirs."""
+    """Return all supported source files under `root`, skipping ignored dirs and symlinks."""
     files: list[Path] = []
     for path in root.rglob("*"):
+        if path.is_symlink():
+            continue
         if not path.is_file() or parser_for(path) is None:
             continue
         if any(part in IGNORED_DIRS for part in path.relative_to(root).parts[:-1]):

@@ -58,7 +58,9 @@ def analyze_at_commit(repo: Path, commit: str, manifest: ArchitectureManifest) -
 
     for rel in snapshot_source_files(repo, commit):
         content = _git(repo, "show", f"{commit}:{rel}")
-        target = snapshot / rel
+        target = (snapshot / rel).resolve()
+        if not target.is_relative_to(snapshot.resolve()):
+            raise RuntimeError(f"Path traversal attempt: {rel}")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
 
