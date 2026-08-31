@@ -74,7 +74,8 @@ def test_mapper_assignment_by_prefix(tmp_path: Path) -> None:
 def test_mapper_fallback_to_first_segment(tmp_path: Path) -> None:
     mapper = _mapper()
     root = tmp_path / "src"
-    assert mapper.layer_for(root / "infra" / "db.py", root) == "infra"
+    # Undeclared directories map to "default" (Option A: no false positives)
+    assert mapper.layer_for(root / "infra" / "db.py", root) == "default"
 
 
 def test_load_manifest_with_rules(tmp_path: Path) -> None:

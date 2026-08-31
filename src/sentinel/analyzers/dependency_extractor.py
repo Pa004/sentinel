@@ -63,6 +63,11 @@ class DependencyExtractor:
             return self._file_with_extension(self._root / clean[2:])
         if clean.startswith("/"):
             return self._file_with_extension(self._root / clean.lstrip("/"))
+        # multi-level: "a.b.c" -> try posix full path (a/b/c), then stem
+        posix_key = clean.replace(".", "/")
+        posix_result = self._by_posix.get(posix_key)
+        if posix_result is not None:
+            return posix_result
         return self._by_stem.get(clean)
 
     def extract(self, file: Path) -> list[Dependency]:

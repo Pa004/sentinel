@@ -7,7 +7,7 @@ from pathlib import Path
 from subprocess import run
 
 _SOURCE_PATH_RE = re.compile(
-    r"([A-Za-z]:[\\/][^\s]*\.(?:ts|tsx|js|jsx|py)|/[^\s]*\.(?:ts|tsx|js|jsx|py))",
+    r"([A-Za-z]:[\\/][^\s]*\.(?:ts|tsx|js|jsx|py|java|cs)|/[^\s]*\.(?:ts|tsx|js|jsx|py|java|cs))",
     re.IGNORECASE,
 )
 
