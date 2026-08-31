@@ -47,11 +47,20 @@ layers:
   domain: {}
 ```
 
+Optional `rules` block tunes coupling thresholds:
+
+```yaml
+rules:
+  god_module: { threshold: 12 }    # total coupling (fan-in + fan-out)
+  high_coupling: { threshold: 5 }  # fan-in (number of dependents)
+```
+
 ## Rules
 
 - **Layer violation** — a dependency crosses a layer boundary that the manifest forbids.
 - **Circular dependency** — a strongly-connected cycle across modules (Tarjan SCC).
-- **God module** — a module with an excessive fan-in (too many dependents).
+- **God module** — total coupling (fan-in + fan-out) exceeds the threshold.
+- **High coupling** — a module's fan-in (dependents) exceeds the threshold.
 
 Every violation reports the **origin commit** (the last commit that touched the source
 file carrying the offending dependency) when the analyzed path lives inside a git repo.

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import yaml
 
-from sentinel.domain.manifest import ArchitectureManifest, Layer
+from sentinel.domain.manifest import VALID_RULE_KEYS, ArchitectureManifest, Layer
 
 
 class ManifestError(ValueError):
@@ -40,4 +40,29 @@ def load_manifest(path: Path) -> ArchitectureManifest:
             raise ManifestError(f"layer '{name}' may_depend_on must be a list of strings")
         layers[name] = Layer(name, frozenset(allowed))
 
-    return ArchitectureManifest(layers)
+    rules = _parse_rules(raw.get("rules"))
+
+    return ArchitectureManifest(layers, rules)
+
+
+def _parse_rules(raw: object) -> dict[str, dict[str, int]]:
+    """Validate the optional `rules` block and return per-rule tuning."""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ManifestError("'rules' must be a mapping")
+    result: dict[str, dict[str, int]] = {}
+    for key, spec in raw.items():
+        if key not in VALID_RULE_KEYS:
+            raise ManifestError(f"unknown rule '{key}'; valid: {sorted(VALID_RULE_KEYS)}")
+        if not isinstance(spec, dict):
+            raise ManifestError(f"rule '{key}' must be a mapping")
+        tuning: dict[str, int] = {}
+        for name, value in spec.items():
+            if name != "threshold":
+                raise ManifestError(f"rule '{key}' only supports 'threshold', got '{name}'")
+            if not isinstance(value, int) or value < 0:
+                raise ManifestError(f"rule '{key}' threshold must be a non-negative integer")
+            tuning[name] = value
+        result[key] = tuning
+    return result
