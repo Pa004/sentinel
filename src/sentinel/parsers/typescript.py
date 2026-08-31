@@ -8,7 +8,7 @@ from tree_sitter import Node, Parser
 from tree_sitter_language_pack import get_parser
 
 from sentinel.domain.symbols import Language, SourceLocation, Symbol, SymbolKind
-from sentinel.parsers.base import ParserBase
+from sentinel.parsers.base import ParserBase, walk
 
 
 class TypeScriptParser(ParserBase):
@@ -60,7 +60,7 @@ class TypeScriptParser(ParserBase):
 
     def extract_imports(self, tree: Node, file: Path) -> list[tuple[str, int]]:
         imports: list[tuple[str, int]] = []
-        for node in _walk(tree):
+        for node in walk(tree):
             if node.type == "import_statement":
                 parts = _string_children(node)
                 if not parts:
@@ -77,7 +77,7 @@ class TypeScriptParser(ParserBase):
 
 def _class_declarations(node: Node) -> list[Node]:
     result: list[Node] = []
-    for n in _walk(node):
+    for n in walk(node):
         if n.type == "class_declaration":
             result.append(n)
     return result
@@ -85,7 +85,7 @@ def _class_declarations(node: Node) -> list[Node]:
 
 def _function_declarations(node: Node) -> list[Node]:
     result: list[Node] = []
-    for n in _walk(node):
+    for n in walk(node):
         if n.type == "function_declaration":
             result.append(n)
     return result
@@ -93,15 +93,7 @@ def _function_declarations(node: Node) -> list[Node]:
 
 def _string_children(node: Node) -> list[str]:
     values: list[str] = []
-    for n in _walk(node):
+    for n in walk(node):
         if n.type == "string_fragment":
             values.append(n.text.decode("utf-8"))
     return values
-
-
-def _walk(node: Node) -> Node:
-    yield node
-    for i in range(node.child_count):
-        child = node.child(i)
-        if child is not None:
-            yield from _walk(child)

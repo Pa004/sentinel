@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sentinel.analyzers.coupling import fan_in
+from sentinel.analyzers.coupling import fan_in_scores
 from sentinel.domain.graph import DependencyGraph
 from sentinel.domain.manifest import ArchitectureManifest
 from sentinel.domain.violations import Severity, Violation, ViolationKind
@@ -30,12 +30,8 @@ class HighCouplingRule(Rule):
         root: Path,
     ) -> list[Violation]:
         violations: list[Violation] = []
-        files = set(graph.nodes())
-        for source in graph.nodes():
-            for dep in graph.dependencies_of(source):
-                files.add(dep.target)
-        for file in files:
-            incoming = fan_in(graph, file)
+        scores = fan_in_scores(graph)
+        for file, incoming in scores.items():
             if incoming > self._threshold:
                 violations.append(
                     Violation(
