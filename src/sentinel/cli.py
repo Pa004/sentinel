@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import typer
@@ -14,6 +15,12 @@ from sentinel.reports.json import serialize
 app = typer.Typer(help="Architecture erosion detector — intended vs observed.")
 console = Console()
 
+DEFAULT_DB = ".sentinel/sentinel.db"
+
+
+def _manifest_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+
 
 @app.command()
 def analyze(
@@ -25,10 +32,12 @@ def analyze(
         help="Architecture manifest YAML path",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),  # noqa: B008
+    save: bool = typer.Option(False, "--save", help="Persist results to .sentinel/sentinel.db"),  # noqa: B008
+    db: Path | None = typer.Option(None, "--db", help="Override SQLite database path"),  # noqa: B008
 ) -> None:
     """Analyze a repository and report architectural violations."""
     from sentinel.domain.manifest import ArchitectureManifest
-    from sentinel.git_origin import find_git_root
+    from sentinel.git_origin import find_git_root, last_commit_sha
     from sentinel.manifest.loader import load_manifest
     from sentinel.violation_engine import analyze_repository
 
@@ -42,6 +51,23 @@ def analyze(
 
         render_console(result, console)
 
+    if save:
+        from sentinel.persistence.store import ArchitectureStore
+
+        db_path = db if db is not None else repo / DEFAULT_DB
+        commit = last_commit_sha(repo) or "n/a"
+        store = ArchitectureStore(db_path)
+        try:
+            run_id = store.save_run(
+                repo_path=repo,
+                commit=commit,
+                manifest_hash=_manifest_hash(manifest),
+                violations=result.violations,
+            )
+            console.print(f"\nSaved as run #{run_id} to {db_path}")
+        finally:
+            store.close()
+
 
 @app.command()
 def graph(
@@ -49,9 +75,9 @@ def graph(
 ) -> None:
     """Print the dependency graph for a repository."""
     files = source_files(repo)
-    graph = build_dependency_graph(files)
-    for node in graph.nodes():
-        for dep in graph.dependencies_of(node):
+    g = build_dependency_graph(files)
+    for node in g.nodes():
+        for dep in g.dependencies_of(node):
             console.print(f"{dep.source} -> {dep.target}  ({dep.evidence})")
 
 
@@ -84,6 +110,39 @@ def trend(
         if point.introduced:
             for item in point.introduced:
                 console.print(f"      introduced: {item}")
+
+
+@app.command()
+def history(
+    repo: Path = typer.Argument(..., help="Repository path"),  # noqa: B008
+    db: Path | None = typer.Option(None, "--db", help="Override SQLite database path"),  # noqa: B008
+) -> None:
+    """Show stored analysis runs for a repository."""
+    from sentinel.persistence.store import ArchitectureStore
+
+    db_path = db if db is not None else repo / DEFAULT_DB
+    if not db_path.exists():
+        console.print("No database found. Run `sentinel analyze --save` first.")
+        return
+    store = ArchitectureStore(db_path)
+    try:
+        import json as _json
+        runs = store.list_runs()
+        if not runs:
+            console.print("No runs stored yet.")
+            return
+        console.print(f"{'Run':>5}  {'Commit':>8}  {'Date':>10}  Counts")
+        console.print("-" * 60)
+        for run in runs:
+            counts = run["counts"]
+            parts = ", ".join(f"{k}={v}" for k, v in sorted(_json.loads(counts).items()))
+            date = run["ts"][:10]
+            console.print(
+                f"{run['id']:>5}  {run['commit_sha'][:8]:>8}  "
+                f"{date:>10}  {parts or 'clean'}"
+            )
+    finally:
+        store.close()
 
 
 if __name__ == "__main__":
