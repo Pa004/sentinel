@@ -21,6 +21,8 @@ class ViolationKind(StrEnum):
     CIRCULAR_DEPENDENCY = "circular_dependency"
     GOD_MODULE = "god_module"
     HIGH_COUPLING = "high_coupling"
+    LOW_COHESION = "low_cohesion"
+    BOUNDARY_CROSSING = "boundary_crossing"
 
 
 @dataclass(frozen=True)

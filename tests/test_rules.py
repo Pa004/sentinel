@@ -9,9 +9,11 @@ from sentinel.domain.graph import DependencyGraph
 from sentinel.domain.manifest import ArchitectureManifest, Layer
 from sentinel.domain.violations import ViolationKind
 from sentinel.manifest.mapper import LayerMapper, LayerRule
+from sentinel.rules.boundary_crossing import BoundaryCrossingRule
 from sentinel.rules.circular import CircularDependencyRule
 from sentinel.rules.god_module import GodModuleRule
 from sentinel.rules.layer_violation import LayerViolationRule
+from sentinel.rules.low_cohesion import LowCohesionRule
 
 MANIFEST = ArchitectureManifest(
     {
@@ -123,4 +125,58 @@ def test_dag_no_circular_dependencies(tmp_path: Path) -> None:
     )
     graph, mapper = _setup(tmp_path / "src")
     violations = CircularDependencyRule().check(graph, MANIFEST, mapper, tmp_path / "src")
+    assert violations == []
+
+
+def test_boundary_crossing_detected(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src",
+        {
+            "ui/App.ts": "import { db } from '../domain/db';\n",
+            "domain/db.ts": "export const db = {};\n",
+        },
+    )
+    graph, mapper = _setup(tmp_path / "src")
+    violations = BoundaryCrossingRule().check(graph, MANIFEST, mapper, tmp_path / "src")
+    kinds = {v.kind for v in violations}
+    assert ViolationKind.BOUNDARY_CROSSING in kinds
+
+
+def test_boundary_crossing_within_layer_not_flagged(tmp_path: Path) -> None:
+    _write(
+        tmp_path / "src",
+        {
+            "ui/App.ts": "import { btn } from '../ui/button';\n",
+            "ui/button.ts": "export const btn = {};\n",
+        },
+    )
+    graph, mapper = _setup(tmp_path / "src")
+    violations = BoundaryCrossingRule().check(graph, MANIFEST, mapper, tmp_path / "src")
+    assert violations == []
+
+
+def test_low_cohesion_detected(tmp_path: Path) -> None:
+    root = tmp_path / "src"
+    root.mkdir()
+    lines_with_imports = []
+    for i in range(6):
+        lines_with_imports.append(f"import dep_{i}\ndef func_{i}(): pass\n")
+    (root / "multi.py").write_text("".join(lines_with_imports), encoding="utf-8")
+    for i in range(6):
+        (root / f"dep_{i}.py").write_text("", encoding="utf-8")
+    graph, mapper = _setup(root)
+    violations = LowCohesionRule(threshold=0.5, min_symbols=3).check(
+        graph, MANIFEST, mapper, root
+    )
+    assert any(v.kind is ViolationKind.LOW_COHESION for v in violations)
+
+
+def test_low_cohesion_not_flagged_for_few_symbols(tmp_path: Path) -> None:
+    root = tmp_path / "src"
+    root.mkdir()
+    (root / "small.py").write_text("def a(): pass\ndef b(): pass\n", encoding="utf-8")
+    graph, mapper = _setup(root)
+    violations = LowCohesionRule(threshold=0.5, min_symbols=5).check(
+        graph, MANIFEST, mapper, root
+    )
     assert violations == []
