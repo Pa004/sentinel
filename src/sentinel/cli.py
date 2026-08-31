@@ -81,6 +81,9 @@ def trend(
         joined = ", ".join(f"{kind.value}={count}" for kind, count in point.counts.items())
         parts = joined or "clean"
         console.print(f"{point.commit[:8]}  {parts}")
+        if point.introduced:
+            for item in point.introduced:
+                console.print(f"      introduced: {item}")
 
 
 if __name__ == "__main__":

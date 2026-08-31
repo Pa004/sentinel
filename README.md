@@ -33,6 +33,10 @@ sentinel graph <repo-path>
 sentinel trend <repo-path> --manifest <manifest.yaml> [--from <sha>] [--to <sha>]
 ```
 
+The `trend` command reports violation counts per commit and flags **introduced
+violations** — architecture it first sees at a given commit (regression), printed
+with the offending file under each commit.
+
 ## Architecture manifest
 
 A manifest declares the layers and which other layers each one may depend on.
