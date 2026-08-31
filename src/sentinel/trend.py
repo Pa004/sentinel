@@ -56,17 +56,19 @@ def analyze_at_commit(repo: Path, commit: str, manifest: ArchitectureManifest) -
         shutil.rmtree(snapshot)
     snapshot.mkdir(parents=True)
 
-    for rel in snapshot_source_files(repo, commit):
-        content = _git(repo, "show", f"{commit}:{rel}")
-        target = (snapshot / rel).resolve()
-        if not target.is_relative_to(snapshot.resolve()):
-            raise RuntimeError(f"Path traversal attempt: {rel}")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+    try:
+        for rel in snapshot_source_files(repo, commit):
+            content = _git(repo, "show", f"{commit}:{rel}")
+            target = (snapshot / rel).resolve()
+            if not target.is_relative_to(snapshot.resolve()):
+                raise RuntimeError(f"Path traversal attempt: {rel}")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content, encoding="utf-8")
 
-    result = analyze_repository(snapshot, manifest)
-    shutil.rmtree(snapshot)
-    return result
+        return analyze_repository(snapshot, manifest)
+    finally:
+        if snapshot.exists():
+            shutil.rmtree(snapshot)
 
 
 def _stable_key(violation: Violation, snapshot_dir: Path) -> str:
