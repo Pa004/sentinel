@@ -22,6 +22,15 @@ def fan_in(graph: DependencyGraph, file: Path) -> int:
     return count
 
 
+def fan_in_scores(graph: DependencyGraph) -> dict[Path, int]:
+    """Fan-in (number of dependents) per file in a single O(V+E) pass."""
+    scores: dict[Path, int] = {}
+    for source in graph.nodes():
+        for dep in graph.dependencies_of(source):
+            scores[dep.target] = scores.get(dep.target, 0) + 1
+    return scores
+
+
 def coupling_scores(graph: DependencyGraph) -> dict[Path, int]:
     """Total coupling (fan-in + fan-out) per file, for god module detection."""
     scores: dict[Path, int] = {}

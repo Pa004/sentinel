@@ -10,6 +10,15 @@ from tree_sitter import Node, Parser
 from sentinel.domain.symbols import Language, Symbol
 
 
+def walk(node: Node) -> Node:
+    """Yield `node` and all its descendants depth-first."""
+    yield node
+    for i in range(node.child_count):
+        child = node.child(i)
+        if child is not None:
+            yield from walk(child)
+
+
 class ParserBase(ABC):
     """Base class for language parsers built on tree-sitter.
 

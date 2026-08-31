@@ -8,7 +8,7 @@ from tree_sitter import Node, Parser
 from tree_sitter_language_pack import get_parser
 
 from sentinel.domain.symbols import Language, SourceLocation, Symbol, SymbolKind
-from sentinel.parsers.base import ParserBase
+from sentinel.parsers.base import ParserBase, walk
 
 
 class CSharpParser(ParserBase):
@@ -24,7 +24,7 @@ class CSharpParser(ParserBase):
 
     def extract_symbols(self, tree: Node, file: Path) -> list[Symbol]:
         symbols: list[Symbol] = []
-        for node in _walk(tree):
+        for node in walk(tree):
             if node.type == "class_declaration":
                 name_node = node.child_by_field_name("name")
                 if name_node is None:
@@ -53,7 +53,7 @@ class CSharpParser(ParserBase):
 
     def extract_imports(self, tree: Node, file: Path) -> list[tuple[str, int]]:
         imports: list[tuple[str, int]] = []
-        for node in _walk(tree):
+        for node in walk(tree):
             if node.type == "using_directive":
                 text = node.text.decode("utf-8").strip()
                 # `using MyApp.Domain;` -> `Domain` (file stem match).
@@ -64,11 +64,3 @@ class CSharpParser(ParserBase):
                     if short:
                         imports.append((short, node.start_point[0] + 1))
         return imports
-
-
-def _walk(node: Node) -> Node:
-    yield node
-    for i in range(node.child_count):
-        child = node.child(i)
-        if child is not None:
-            yield from _walk(child)
