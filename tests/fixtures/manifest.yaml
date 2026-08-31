@@ -1,0 +1,9 @@
+layers:
+  presentation:
+    may_depend_on:
+      - application
+  application:
+    may_depend_on:
+      - domain
+  domain:
+    may_depend_on: []
