@@ -14,13 +14,17 @@ from sentinel.manifest.loader import load_manifest
 from sentinel.manifest.mapper import LayerMapper, LayerRule
 from sentinel.parsers.registry import source_files
 from sentinel.rules.base import Rule
+from sentinel.rules.boundary_crossing import BoundaryCrossingRule
 from sentinel.rules.circular import CircularDependencyRule
 from sentinel.rules.god_module import GodModuleRule
 from sentinel.rules.high_coupling import HighCouplingRule
 from sentinel.rules.layer_violation import LayerViolationRule
+from sentinel.rules.low_cohesion import LowCohesionRule
 
 GOD_MODULE_DEFAULT = 10
 HIGH_COUPLING_DEFAULT = 8
+LOW_COHESION_THRESHOLD = 0.3
+LOW_COHESION_MIN_SYMBOLS = 5
 
 
 class AnalysisResult:
@@ -52,6 +56,15 @@ def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
         CircularDependencyRule(),
         GodModuleRule(manifest.rule_threshold("god_module", GOD_MODULE_DEFAULT)),
         HighCouplingRule(manifest.rule_threshold("high_coupling", HIGH_COUPLING_DEFAULT)),
+        LowCohesionRule(
+            threshold=manifest.rule_threshold(
+                "low_cohesion", LOW_COHESION_THRESHOLD
+            ),
+            min_symbols=manifest.rule_threshold(
+                "low_cohesion_min_symbols", LOW_COHESION_MIN_SYMBOLS
+            ),
+        ),
+        BoundaryCrossingRule(),
     )
 
 
