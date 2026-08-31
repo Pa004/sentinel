@@ -83,6 +83,7 @@ _TEMPLATE = """\
 
 <h2>Violations</h2>
 <div class="controls">
+  <select id="runSelect" style="display:none"><option value="">Load stored run...</option></select>
   <select id="filterSeverity"><option value="">Severity: all</option>
     <option value="error">error</option><option value="warning">warning</option><option value="info">info</option></select>
   <select id="filterKind"><option value="">Kind: all</option></select>
@@ -312,6 +313,105 @@ document.getElementById('exportCsv').onclick = function() {{
 
 /* ── Initial render ── */
 applyFilters();
+
+/* ── Multirun: fetch /api/runs if served by sentinel serve ── */
+(function() {{
+  if (location.protocol === 'file:') return;
+  var sel = document.getElementById('runSelect');
+  fetch('/api/runs').then(function(r) {{ return r.json(); }}).then(function(runs) {{
+    if (!runs.length) return;
+    sel.style.display = '';
+    runs.forEach(function(run) {{
+      var o = document.createElement('option');
+      o.value = run.id;
+      o.textContent = 'Run #' + run.id + ' / ' + run.commit_sha.substring(0, 8) + ' / ' + run.ts.substring(0, 10);
+      sel.appendChild(o);
+    }});
+    sel.onchange = function() {{
+      var id = sel.value;
+      if (!id) return;
+      fetch('/api/runs/' + id).then(function(r) {{ return r.json(); }}).then(function(run) {{
+        if (run.error) return;
+        violationsData.length = 0;
+        run.violations.forEach(function(v) {{
+          violationsData.push({{
+            rule: v.rule, kind: v.kind, severity: v.severity,
+            evidence: v.evidence, impact: v.impact,
+            recommendation: v.recommendation,
+            commit: v.commit_sha || 'n/a',
+            components: v.components || ''
+          }});
+        }});
+        rebuildKindSelect();
+        rebuildKindBreakdown();
+        rebuildDonut();
+        applyFilters();
+      }});
+    }};
+  }}).catch(function() {{}});
+
+  function rebuildKindSelect() {{
+    var sel = document.getElementById('filterKind');
+    var val = sel.value;
+    sel.innerHTML = '<option value="">Kind: all</option>';
+    var kinds = {{}};
+    violationsData.forEach(function(v) {{ kinds[v.kind] = 1; }});
+    Object.keys(kinds).sort().forEach(function(k) {{
+      var o = document.createElement('option');
+      o.value = k; o.textContent = k;
+      sel.appendChild(o);
+    }});
+    sel.value = val;
+  }}
+
+  function rebuildKindBreakdown() {{
+    var container = document.getElementById('kindBreakdown');
+    container.innerHTML = '';
+    var counts = {{}};
+    var sevByKind = {{}};
+    violationsData.forEach(function(v) {{
+      counts[v.kind] = (counts[v.kind] || 0) + 1;
+      sevByKind[v.kind] = sevByKind[v.kind] || {{}};
+      sevByKind[v.kind][v.severity] = (sevByKind[v.kind][v.severity] || 0) + 1;
+    }});
+    var maxCount = Math.max.apply(null, Object.values(counts).concat([1]));
+    var palette = {{ error: '#f85149', warning: '#d29922', info: '#58a6ff' }};
+    Object.keys(counts).sort(function(a,b) {{ return counts[b] - counts[a]; }}).forEach(function(kind) {{
+      var dominant = Object.keys(sevByKind[kind]).sort(function(a,b) {{ return (sevByKind[kind][b]||0) - (sevByKind[kind][a]||0); }})[0];
+      var color = palette[dominant] || '#8b949e';
+      var pct = (counts[kind] / maxCount * 100);
+      var row = document.createElement('div');
+      row.className = 'kind-row';
+      row.innerHTML = '<span class="kind-count">' + counts[kind] + '</span>'
+        + '<span class="kind-bar" style="width:' + pct + '%;background:' + color + '"></span>'
+        + '<span>' + kind + '</span>';
+      row.onclick = function() {{
+        var sel = document.getElementById('filterKind');
+        sel.value = sel.value === kind ? '' : kind;
+        applyFilters();
+      }};
+      container.appendChild(row);
+    }});
+  }}
+
+  function rebuildDonut() {{
+    var oldChart = Chart.getChart('donutChart');
+    if (oldChart) oldChart.destroy();
+    var counts = {{}};
+    violationsData.forEach(function(v) {{ counts[v.kind] = (counts[v.kind] || 0) + 1; }});
+    var labels = Object.keys(counts);
+    var palette = ['#f85149','#d29922','#58a6ff','#3fb950','#bc8cff','#f778ba'];
+    if (labels.length) {{
+      new Chart(document.getElementById('donutChart').getContext('2d'), {{
+        type: 'doughnut',
+        data: {{ labels: labels, datasets: [{{ data: labels.map(function(k) {{ return counts[k]; }}),
+          backgroundColor: labels.map(function(_, i) {{ return palette[i % palette.length]; }}) }}] }},
+        options: {{ responsive: true, plugins: {{ title: {{ display: true, text: 'By Kind', color: '#c9d1d9' }},
+          legend: {{ labels: {{ color: '#c9d1d9' }} }} }} }}
+      }});
+    }}
+  }}
+}})();
 </script>
 </body>
 </html>
