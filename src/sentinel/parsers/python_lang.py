@@ -60,7 +60,7 @@ class PythonParser(ParserBase):
                     imports.append((module, node.start_point[0] + 1))
             elif node.type == "import_from_statement":
                 module = _from_module_text(node)
-                if module:
+                if module and not _has_wildcard(node):
                     imports.append((module, node.start_point[0] + 1))
         return imports
 
@@ -80,3 +80,7 @@ def _from_module_text(node: Node) -> str:
         if child is not None and child.type == "relative_import":
             return child.text.decode("utf-8")
     return ""
+
+
+def _has_wildcard(node: Node) -> bool:
+    return any(child.type == "wildcard_import" for child in node.children)

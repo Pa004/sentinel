@@ -137,6 +137,13 @@ def test_java_skips_star_imports() -> None:
     assert imports == []
 
 
+def test_python_skips_star_imports() -> None:
+    parser = PythonParser()
+    tree = parser.parse("from os import *\n", Path("main.py"))
+    imports = parser.extract_imports(tree, Path("main.py"))
+    assert imports == []
+
+
 def test_java_extracts_symbols() -> None:
     parser = JavaParser()
     tree = parser.parse(JAVA_SAMPLE, Path("App.java"))
