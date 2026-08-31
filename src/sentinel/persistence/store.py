@@ -73,6 +73,8 @@ class ArchitectureStore:
             (ts, str(repo_path), commit, manifest_hash, json.dumps(counts)),
         )
         run_id = cur.lastrowid
+        if run_id is None:
+            raise RuntimeError("Failed to insert run into database")
         for v in violations:
             conn.execute(
                 "INSERT INTO violations "
@@ -91,7 +93,7 @@ class ArchitectureStore:
                 ),
             )
         conn.commit()
-        return run_id  # type: ignore[return-value]
+        return run_id
 
     def list_runs(self) -> list[dict]:
         conn = self._connect()

@@ -45,7 +45,7 @@ class DependencyExtractor:
         self._root = _project_root(files)
         self._by_stem: dict[str, Path] = {}
         self._by_posix: dict[str, Path] = {}
-        for file in files:
+        for file in sorted(files, key=lambda f: f.as_posix()):
             self._by_stem.setdefault(file.stem, file)
             try:
                 rel = file.relative_to(self._root)

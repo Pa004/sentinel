@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from sentinel.domain.violations import ViolationKind
 
 
-@dataclass(frozen=True)
+@dataclass
 class TrendPoint:
     """Snapshot of violation counts at a single point in history."""
 
