@@ -23,6 +23,7 @@ class ViolationKind(StrEnum):
     HIGH_COUPLING = "high_coupling"
     LOW_COHESION = "low_cohesion"
     BOUNDARY_CROSSING = "boundary_crossing"
+    DATABASE_LEAKAGE = "database_leakage"
 
 
 @dataclass(frozen=True)
