@@ -77,6 +77,8 @@ def _from_module_text(node: Node) -> str:
         child = node.child(i)
         if child is not None and child.type == "dotted_name":
             return child.text.decode("utf-8")
+        if child is not None and child.type == "relative_import":
+            return child.text.decode("utf-8")
     return ""
 
 

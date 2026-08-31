@@ -66,3 +66,26 @@ def test_coupling_scores_count_fan_in_and_fan_out(tmp_path: Path) -> None:
     assert scores[tmp_path / "db.ts"] == 1
     assert fan_out(graph, tmp_path / "app.ts") == 1
     assert fan_in(graph, tmp_path / "db.ts") == 1
+
+
+def test_resolve_multi_level_import(tmp_path: Path) -> None:
+    pkg = tmp_path / "app"
+    pkg.mkdir()
+    models = pkg / "models.py"
+    models.write_text("", encoding="utf-8")
+    main = tmp_path / "main.py"
+    main.write_text("", encoding="utf-8")
+    extractor = DependencyExtractor((main, models))
+    # "app.models" -> app/models.py (dots become slashes)
+    assert extractor.resolve("app.models", main) == models
+
+
+def test_resolve_relative_import(tmp_path: Path) -> None:
+    base = tmp_path / "src"
+    base.mkdir()
+    utils = base / "utils.py"
+    utils.write_text("", encoding="utf-8")
+    extractor = DependencyExtractor((utils,))
+    # "./utils" relative to importer in src/
+    result = extractor.resolve("./utils", base / "main.py")
+    assert result == utils

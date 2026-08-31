@@ -77,6 +77,20 @@ def test_source_path_from_evidence(tmp_path: Path) -> None:
     assert path.name == "App.ts"
 
 
+def test_source_path_from_evidence_java(tmp_path: Path) -> None:
+    evidence = "/home/user/project/src/Main.java:10 imports /home/user/project/model/User.java"
+    path = source_path_from_evidence(evidence)
+    assert path is not None
+    assert path.name == "Main.java"
+
+
+def test_source_path_from_evidence_csharp(tmp_path: Path) -> None:
+    evidence = "/home/user/project/Program.cs:5 imports /home/user/project/Data/Repository.cs"
+    path = source_path_from_evidence(evidence)
+    assert path is not None
+    assert path.name == "Program.cs"
+
+
 def test_head_commit_sha_returns_current_head(tmp_path: Path) -> None:
     repo = _make_repo(tmp_path, "initial commit")
     sha = head_commit_sha(repo)

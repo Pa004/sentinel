@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from sentinel.domain.manifest import ArchitectureManifest
-from sentinel.parsers.registry import IGNORED_DIRS
 
 
 @dataclass(frozen=True)
@@ -37,10 +36,6 @@ class LayerMapper:
         for rule in self._rules:
             if any(posix.startswith(p) for p in rule.patterns):
                 return rule.layer
-        # fallback: first directory segment
-        parts = rel.parts
-        if parts and parts[0] not in IGNORED_DIRS:
-            return parts[0]
         return "default"
 
     def layer_of_module(self, file: Path, root: Path) -> str:
