@@ -9,6 +9,7 @@ from sentinel.analyzers.dependency_extractor import build_dependency_graph
 from sentinel.analyzers.drift import drift_score as compute_drift
 from sentinel.domain.graph import DependencyGraph
 from sentinel.domain.manifest import ArchitectureManifest
+from sentinel.domain.metrics import RunMetrics, compute_metrics
 from sentinel.domain.violations import Violation
 from sentinel.git_origin import last_commit_sha, source_path_from_evidence
 from sentinel.manifest.loader import load_manifest
@@ -40,10 +41,12 @@ class AnalysisResult:
         graph: DependencyGraph,
         violations: list[Violation],
         drift: float = 0.0,
+        metrics: RunMetrics | None = None,
     ) -> None:
         self.graph = graph
         self.violations = violations
         self.drift = drift
+        self.metrics = metrics
 
     def by_severity(self) -> dict[str, list[Violation]]:
         result: dict[str, list[Violation]] = {}
@@ -123,7 +126,8 @@ def analyze_repository(
         violations = _attach_commit_origins(violations, git_root)
     violations.sort(key=lambda v: (v.severity.value, v.rule, v.evidence))
     drift = compute_drift(graph, mapper, manifest, root)
-    return AnalysisResult(graph, violations, drift=drift.score)
+    metrics = compute_metrics(violations, graph, drift.score)
+    return AnalysisResult(graph, violations, drift=drift.score, metrics=metrics)
 
 
 def analyze_repository_from_manifest(root: Path, manifest_path: Path) -> AnalysisResult:

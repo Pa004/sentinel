@@ -63,6 +63,7 @@ def analyze(
                 commit=commit,
                 manifest_hash=_manifest_hash(manifest),
                 violations=result.violations,
+                metrics=result.metrics.to_dict() if result.metrics else None,
             )
             console.print(f"\nSaved as run #{run_id} to {db_path}")
         finally:
