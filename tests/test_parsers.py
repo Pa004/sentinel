@@ -1,10 +1,12 @@
-"""Unit tests for tree-sitter parsers (TypeScript + Python)."""
+"""Unit tests for tree-sitter parsers (TypeScript, Python, Java, C#)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 from sentinel.domain.symbols import Language, SymbolKind
+from sentinel.parsers.csharp import CSharpParser
+from sentinel.parsers.java import JavaParser
 from sentinel.parsers.python_lang import PythonParser
 from sentinel.parsers.registry import language_for, parser_for, source_files
 from sentinel.parsers.typescript import TypeScriptParser
@@ -80,6 +82,94 @@ def test_registry_language_and_parser() -> None:
     assert language_for(Path("c.unknown")) is None
     assert parser_for(Path("a.tsx")) is not None
     assert parser_for(Path("c.unknown")) is None
+
+
+JAVA_SAMPLE = """
+package com.example.app;
+
+import java.util.List;
+import com.example.model.User;
+import com.example.dao.UserDao;
+
+public class App {
+    public void run() {
+        List<User> users;
+        UserDao dao;
+    }
+}
+"""
+
+CSHARP_SAMPLE = """
+using System;
+using MyApp.Domain;
+using MyApp.Data;
+
+namespace MyApp {
+    public class Program {
+        public void Main() {
+            var entity = new Entity();
+            var repo = new Repository();
+        }
+    }
+}
+"""
+
+
+def test_java_extracts_imports() -> None:
+    parser = JavaParser()
+    tree = parser.parse(JAVA_SAMPLE, Path("App.java"))
+    imports = parser.extract_imports(tree, Path("App.java"))
+    refs = [p for p, _ in imports]
+    # last FQN segment is returned so the stem resolver can match files
+    assert "User" in refs
+    assert "UserDao" in refs
+    assert "List" in refs
+
+
+def test_java_skips_star_imports() -> None:
+    parser = JavaParser()
+    tree = parser.parse("import com.example.model.*;\n", Path("X.java"))
+    imports = parser.extract_imports(tree, Path("X.java"))
+    assert imports == []
+
+
+def test_java_extracts_symbols() -> None:
+    parser = JavaParser()
+    tree = parser.parse(JAVA_SAMPLE, Path("App.java"))
+    symbols = parser.extract_symbols(tree, Path("App.java"))
+    kinds = {s.name: s.kind for s in symbols}
+    assert kinds["App"] is SymbolKind.CLASS
+    assert kinds["run"] is SymbolKind.FUNCTION
+
+
+def test_csharp_extracts_imports() -> None:
+    parser = CSharpParser()
+    tree = parser.parse(CSHARP_SAMPLE, Path("Program.cs"))
+    imports = parser.extract_imports(tree, Path("Program.cs"))
+    refs = [p for p, _ in imports]
+    # `using System;` has no namespace; `MyApp.Domain` -> `Domain`, `MyApp.Data` -> `Data`
+    assert "Domain" in refs
+    assert "Data" in refs
+
+
+def test_csharp_extracts_symbols() -> None:
+    parser = CSharpParser()
+    tree = parser.parse(CSHARP_SAMPLE, Path("Program.cs"))
+    symbols = parser.extract_symbols(tree, Path("Program.cs"))
+    kinds = {s.name: s.kind for s in symbols}
+    assert kinds["Program"] is SymbolKind.CLASS
+    assert kinds["Main"] is SymbolKind.FUNCTION
+    # `System` is the stdlib `using`; its only segment is not treated as a local ref file,
+    # but the parser still returns it. It stays unresolved by the extractor.
+    parser_imports = parser.extract_imports(tree, Path("Program.cs"))
+    assert {p for p, _ in parser_imports} >= {"Domain", "Data"}
+
+
+def test_registry_java_csharp() -> None:
+    assert language_for(Path("a.java")) is Language.JAVA
+    assert language_for(Path("b.cs")) is Language.CSHARP
+    assert parser_for(Path("a.java")) is not None
+    assert parser_for(Path("b.cs")) is not None
 
 
 def test_registry_source_files_ignores_ignored_dirs(tmp_path: Path) -> None:

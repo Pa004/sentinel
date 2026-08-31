@@ -6,6 +6,11 @@ violations and tracks regression across git history.
 
 Built as a lightweight MVP: pure Python + tree-sitter, no Rust toolchain required.
 
+## Supported languages
+
+TypeScript/JavaScript, Python, Java, and C#. Imports/`using` directives are resolved
+to files by matching the referenced module (or last FQN segment) against project file stems.
+
 ## Flow
 
 ```
