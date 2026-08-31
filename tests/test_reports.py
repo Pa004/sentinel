@@ -1,7 +1,8 @@
-"""Tests for the HTML report generator."""
+"""Tests for the interactive HTML report generator."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from sentinel.domain.violations import Severity, Violation, ViolationKind
@@ -49,23 +50,45 @@ TREND = [
 ]
 
 
-def test_render_report_contains_table_and_cards() -> None:
+def _extract_violations_json(html: str) -> list[dict]:
+    marker = "const violationsData = "
+    start = html.index(marker) + len(marker)
+    end = html.index(";", start)
+    return json.loads(html[start:end])
+
+
+def test_render_report_contains_cards_and_controls() -> None:
     html = render_report(violations=VIOLATIONS, trend_data=TREND, meta="test repo")
     assert "Total Violations" in html
     assert "Errors" in html
     assert "Warnings" in html
     assert "Info" in html
-    assert "<table>" in html
-    assert "layer_violation" in html
-    assert "circular_dependency" in html
-    assert "high_coupling" in html
+    assert 'id="violationsTable"' in html
+    assert 'id="filterSeverity"' in html
+    assert 'id="filterKind"' in html
+    assert 'id="searchInput"' in html
+    assert 'id="exportCsv"' in html
 
 
-def test_render_report_counts_by_severity() -> None:
+def test_render_report_violations_json_data() -> None:
     html = render_report(violations=VIOLATIONS, trend_data=TREND)
-    assert html.count('class="sev-error"') == 1
-    assert html.count('class="sev-warning"') == 1
-    assert html.count('class="sev-info"') == 1
+    data = _extract_violations_json(html)
+    assert len(data) == 3
+    assert data[0]["rule"] == "layer_violation"
+    assert data[0]["severity"] == "error"
+    assert data[0]["commit"] == "abc12345"
+    assert data[1]["kind"] == "circular_dependency"
+    assert data[2]["commit"] == "n/a"
+    assert "ui" in data[0]["components"]
+
+
+def test_render_report_severity_in_json() -> None:
+    html = render_report(violations=VIOLATIONS, trend_data=TREND)
+    data = _extract_violations_json(html)
+    severities = [v["severity"] for v in data]
+    assert severities.count("error") == 1
+    assert severities.count("warning") == 1
+    assert severities.count("info") == 1
 
 
 def test_render_report_embebs_trend_json() -> None:
@@ -78,8 +101,10 @@ def test_render_report_embebs_trend_json() -> None:
 def test_render_report_empty_violations() -> None:
     html = render_report(violations=[], trend_data=[])
     assert "Total Violations" in html
-    assert "<table>" in html
+    assert 'id="violationsTable"' in html
     assert "trendData = []" in html
+    data = _extract_violations_json(html)
+    assert data == []
 
 
 def test_render_report_no_trend() -> None:
@@ -98,7 +123,8 @@ def test_write_report_creates_file(tmp_path: Path) -> None:
     assert output.exists()
     content = output.read_text(encoding="utf-8")
     assert "<!DOCTYPE html>" in content
-    assert "layer_violation" in content
+    data = _extract_violations_json(content)
+    assert any(v["rule"] == "layer_violation" for v in data)
 
 
 def test_render_report_meta_shown() -> None:
@@ -118,12 +144,15 @@ def test_render_report_escapes_html_in_violations() -> None:
         commit=None,
     )
     html = render_report(violations=[xss_violation], trend_data=[], meta="<b>repo</b>")
+    # Raw XSS strings must not appear in the HTML
     assert "<script>alert(1)</script>" not in html
-    assert "&lt;script&gt;" in html
-    assert "&lt;img" in html
-    assert "&lt;b&gt;repo&lt;/b&gt;" in html
-    # javascript: in href is rendered as text, not a clickable link
-    assert 'href="javascript:' not in html
+    # The malicious data is in violationsData JSON, with </ escaped to <\/
+    data = _extract_violations_json(html)
+    assert data[0]["rule"] == "<script>alert(1)</script>"
+    assert data[0]["evidence"] == '<img onerror="alert(1)" src=x>'
+    # </script> breakout is prevented
+    assert "</script><script>" not in html
+    assert "<\\/script>" in html
 
 
 def test_render_report_escapes_script_in_trend() -> None:
@@ -131,3 +160,15 @@ def test_render_report_escapes_script_in_trend() -> None:
     html = render_report(violations=[], trend_data=malicious_trend)
     assert "</script><script>" not in html
     assert "<\\/script>" in html
+
+
+def test_render_report_has_kind_breakdown() -> None:
+    html = render_report(violations=VIOLATIONS, trend_data=TREND)
+    assert 'id="kindBreakdown"' in html
+    assert 'id="donutChart"' in html
+
+
+def test_render_report_has_drift() -> None:
+    html = render_report(violations=VIOLATIONS, trend_data=TREND, drift=0.75)
+    assert "0.75" in html
+    assert "drift-red" in html
