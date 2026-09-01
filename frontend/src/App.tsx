@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Sun, Moon } from "lucide-react"
+import { Sun, Moon, X, RotateCcw } from "lucide-react"
 import { motion } from "framer-motion"
 import { analyze } from "./api"
 import type { Violation, AnalysisResult } from "./api"
@@ -40,6 +40,7 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [lastAnalyzed, setLastAnalyzed] = useState<{ url: string; branch: string } | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>("violations")
   const [severityFilter, setSeverityFilter] = useState("")
   const [kindFilter, setKindFilter] = useState("")
@@ -55,6 +56,7 @@ export default function App() {
     setLoading(true)
     setError("")
     setResult(null)
+    setLastAnalyzed({ url, branch: br })
     try {
       const data = await analyze(url, br)
       setResult(data)
@@ -62,6 +64,12 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Analysis failed")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRetry = () => {
+    if (lastAnalyzed) {
+      handleAnalyze(lastAnalyzed.url, lastAnalyzed.branch)
     }
   }
 
@@ -170,7 +178,27 @@ export default function App() {
             role="alert"
             className="mt-4 rounded-md border border-error/30 bg-error/10 p-4 text-sm text-error"
           >
-            {error}
+            <div className="flex items-start justify-between gap-3">
+              <span>{error}</span>
+              <div className="flex shrink-0 gap-2">
+                {lastAnalyzed && (
+                  <button
+                    onClick={handleRetry}
+                    className="inline-flex items-center gap-1 rounded bg-error/15 px-2 py-1 text-xs font-medium transition-colors hover:bg-error/25"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Retry
+                  </button>
+                )}
+                <button
+                  onClick={() => setError("")}
+                  className="rounded p-1 transition-colors hover:bg-error/15"
+                  aria-label="Dismiss error"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
 
