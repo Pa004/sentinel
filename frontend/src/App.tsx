@@ -9,6 +9,8 @@ import MetricsBar from "./components/MetricsBar"
 import ViolationsTab from "./components/ViolationsTab"
 import RemediationTab from "./components/RemediationTab"
 import LoadingState from "./components/LoadingState"
+import FeatureCards from "./components/FeatureCards"
+import HowItWorks from "./components/HowItWorks"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -66,6 +68,8 @@ export default function App() {
     return true
   })
 
+  const showHero = !result && !loading && !error
+
   const counts = {
     total: violations.length,
     errors: violations.filter((v) => v.severity === "error").length,
@@ -88,6 +92,13 @@ export default function App() {
         </div>
 
         <AnalyzeForm onAnalyze={handleAnalyze} loading={loading} />
+
+        {showHero && (
+          <>
+            <FeatureCards />
+            <HowItWorks />
+          </>
+        )}
 
         {error && (
           <motion.div
