@@ -15,6 +15,7 @@ import FeatureCards from "./components/FeatureCards"
 import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
+import { usePerformance } from "./hooks/usePerformance"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -37,6 +38,7 @@ type TabKey = (typeof TABS)[number]
 export default function App() {
   const { dark, toggle } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
+  const { metrics: perfMetrics, startTimer, endTimer } = usePerformance()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -57,8 +59,10 @@ export default function App() {
     setError("")
     setResult(null)
     setLastAnalyzed({ url, branch: br })
+    startTimer()
     try {
       const data = await analyze(url, br)
+      endTimer()
       setResult(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed")
@@ -228,6 +232,12 @@ export default function App() {
               info={counts.info}
               drift={result.drift_score}
             />
+
+            {perfMetrics.analysisTimeMs !== null && (
+              <p className="text-xs text-muted text-right">
+                Analyzed in {(perfMetrics.analysisTimeMs / 1000).toFixed(1)}s
+              </p>
+            )}
 
             {metrics && <MetricsBar metrics={metrics} />}
 
