@@ -46,9 +46,10 @@ Thumbs.db
 *.tmp
 *.bak
 
-# Markdown: only README.md is versioned
+# Markdown: only README.md and CHANGELOG.md are versioned
 *.md
 !README.md
+!CHANGELOG.md
 
 # Frontend (React dashboard)
 frontend/node_modules/
