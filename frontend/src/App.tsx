@@ -8,7 +8,9 @@ import SummaryCards from "./components/SummaryCards"
 import MetricsBar from "./components/MetricsBar"
 import ViolationsTab from "./components/ViolationsTab"
 import RemediationTab from "./components/RemediationTab"
-import LoadingState from "./components/LoadingState"
+import SkeletonCards from "./components/SkeletonCards"
+import SkeletonMetrics from "./components/SkeletonMetrics"
+import SkeletonTable from "./components/SkeletonTable"
 import FeatureCards from "./components/FeatureCards"
 import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
@@ -112,7 +114,13 @@ export default function App() {
           </motion.div>
         )}
 
-        {loading && <div className="mt-6"><LoadingState /></div>}
+        {loading && (
+          <div className="mt-6 space-y-5">
+            <SkeletonCards />
+            <SkeletonMetrics />
+            <SkeletonTable />
+          </div>
+        )}
 
         {result && !loading && (
           <motion.div
