@@ -17,6 +17,8 @@ import FeatureCards from "./components/FeatureCards"
 import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
+import { useHistory } from "./hooks/useHistory"
+import HistoryPanel from "./components/HistoryPanel"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -39,6 +41,7 @@ type TabKey = (typeof TABS)[number]
 export default function App() {
   const { dark, toggle } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
+  const { history, addEntry, clearHistory } = useHistory()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -62,6 +65,12 @@ export default function App() {
     try {
       const data = await analyze(url, br)
       setResult(data)
+      addEntry({
+        url,
+        branch: br,
+        violations: data.total_violations,
+        drift: data.drift_score,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed")
     } finally {
@@ -171,6 +180,15 @@ export default function App() {
             <FeatureCards />
             <HowItWorks />
           </>
+        )}
+
+        {!showHero && (
+          <HistoryPanel
+            history={history}
+            onSelect={(url, branch) => handleAnalyze(url, branch)}
+            onClear={clearHistory}
+            loading={loading}
+          />
         )}
 
         {error && (
