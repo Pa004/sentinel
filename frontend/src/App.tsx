@@ -16,6 +16,7 @@ import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
 import { useToast } from "./components/Toast"
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -81,6 +82,13 @@ export default function App() {
       handleAnalyze(lastAnalyzed.url, lastAnalyzed.branch)
     }
   }
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    "1": () => setActiveTab("violations"),
+    "2": () => setActiveTab("remediation"),
+    "escape": () => setError(""),
+  })
 
   // Focus management: move focus to results after analysis completes
   useEffect(() => {
