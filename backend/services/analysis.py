@@ -5,13 +5,15 @@ from __future__ import annotations
 import shutil
 import tempfile
 from pathlib import Path
-from subprocess import run
+from subprocess import TimeoutExpired, run
 from urllib.parse import urlparse
+
+CLONE_TIMEOUT = 60
 
 
 def _git(repo: Path, *args: str) -> None:
     """Run a git command in the given repo."""
-    run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+    run(["git", "-C", str(repo), *args], check=True, capture_output=True, timeout=CLONE_TIMEOUT)
 
 
 def _parse_repo_url(url: str) -> tuple[str, str]:
@@ -41,7 +43,13 @@ async def run_analysis(repo_url: str, branch: str = "main") -> dict:
     repo_dir = tmp_dir / "repo"
 
     try:
-        _git(tmp_dir, "clone", "--depth=1", "--branch", branch, clone_url, str(repo_dir))
+        try:
+            _git(tmp_dir, "clone", "--depth=1", "--branch", branch, clone_url, str(repo_dir))
+        except TimeoutExpired as exc:
+            raise TimeoutError(
+                f"Git clone timed out after {CLONE_TIMEOUT}s — "
+                "the repository may be too large or unreachable"
+            ) from exc
 
         manifest_path = repo_dir / "sentinel.yaml"
         if manifest_path.exists():

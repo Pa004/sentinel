@@ -8,6 +8,8 @@ import SummaryCards from "./components/SummaryCards"
 import MetricsBar from "./components/MetricsBar"
 import ViolationsTab from "./components/ViolationsTab"
 import RemediationTab from "./components/RemediationTab"
+import ShareButton from "./components/ShareButton"
+import ExportButton from "./components/ExportButton"
 import SkeletonCards from "./components/SkeletonCards"
 import SkeletonMetrics from "./components/SkeletonMetrics"
 import SkeletonTable from "./components/SkeletonTable"
@@ -16,6 +18,10 @@ import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
 import { usePerformance } from "./hooks/usePerformance"
+import { useToast } from "./components/Toast"
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
+import { useHistory } from "./hooks/useHistory"
+import HistoryPanel from "./components/HistoryPanel"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -39,6 +45,8 @@ export default function App() {
   const { dark, toggle } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
   const { metrics: perfMetrics, startTimer, endTimer } = usePerformance()
+  const { addToast } = useToast()
+  const { history, addEntry, clearHistory } = useHistory()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -64,8 +72,21 @@ export default function App() {
       const data = await analyze(url, br)
       endTimer()
       setResult(data)
+      if (data.total_violations === 0) {
+        addToast("No violations found — architecture looks clean!", "success")
+      } else {
+        addToast(`Found ${data.total_violations} violation(s)`, "info")
+      }
+      addEntry({
+        url,
+        branch: br,
+        violations: data.total_violations,
+        drift: data.drift_score,
+      })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed")
+      const msg = err instanceof Error ? err.message : "Analysis failed"
+      setError(msg)
+      addToast(msg, "error")
     } finally {
       setLoading(false)
     }
@@ -76,6 +97,13 @@ export default function App() {
       handleAnalyze(lastAnalyzed.url, lastAnalyzed.branch)
     }
   }
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    "1": () => setActiveTab("violations"),
+    "2": () => setActiveTab("remediation"),
+    "escape": () => setError(""),
+  })
 
   // Focus management: move focus to results after analysis completes
   useEffect(() => {
@@ -175,6 +203,15 @@ export default function App() {
           </>
         )}
 
+        {!showHero && (
+          <HistoryPanel
+            history={history}
+            onSelect={(url, branch) => handleAnalyze(url, branch)}
+            onClear={clearHistory}
+            loading={loading}
+          />
+        )}
+
         {error && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -239,7 +276,16 @@ export default function App() {
               </p>
             )}
 
-            {metrics && <MetricsBar metrics={metrics} />}
+            <div className="flex items-center justify-between">
+              {metrics && <MetricsBar metrics={metrics} />}
+              <div className="flex items-center gap-2">
+                <ShareButton
+                  repoUrl={lastAnalyzed?.url ?? ""}
+                  branch={lastAnalyzed?.branch ?? "main"}
+                />
+                <ExportButton result={result} />
+              </div>
+            </div>
 
             <div
               role="tablist"
