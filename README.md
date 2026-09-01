@@ -9,7 +9,7 @@ reports violations, and tracks regression across git history.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-126%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-138%20passed-brightgreen.svg)]()
 [![Live Demo](https://img.shields.io/badge/demo-live-ff69b4.svg)](https://sentinel-zxr.pages.dev)
 
 [**Try it live**](https://sentinel-zxr.pages.dev) — no installation required
@@ -125,18 +125,18 @@ Repository
 ## Development
 
 ```bash
-# Lint
+# Backend
 ruff check src tests
 ruff format src tests
-
-# Tests
 python -m pytest tests/ -v
 
 # Frontend
 cd frontend
 npm install
-npm run dev    # local dev server
-npm run build  # production build
+npm run dev      # local dev server
+npm run build    # production build
+npm run test     # frontend tests (Vitest)
+npm run lint     # oxlint
 ```
 
 Tests use synthetic repos of known architecture (`GOOD`, `BAD`, `EVOLVING`) so every violation is provably detected.
@@ -145,23 +145,45 @@ Tests use synthetic repos of known architecture (`GOOD`, `BAD`, `EVOLVING`) so e
 
 ```
 sentinel/
-├── src/sentinel/          # Core library
-│   ├── parsers/           # tree-sitter language parsers
-│   ├── analyzers/         # coupling, cohesion analysis
-│   ├── rules/             # 8 detection rules
-│   ├── domain/            # Manifest, Violation types
-│   ├── manifest/          # YAML loader
-│   ├── persistence/       # SQLite run storage
-│   ├── reports/           # HTML report generator
+├── src/sentinel/              # Core library
+│   ├── parsers/               # tree-sitter language parsers
+│   ├── analyzers/             # coupling, cohesion analysis
+│   ├── rules/                 # 8 detection rules
+│   ├── domain/                # Manifest, Violation types
+│   ├── manifest/              # YAML loader
+│   ├── persistence/           # SQLite run storage
+│   ├── reports/               # HTML report generator
 │   ├── violation_engine.py
-│   ├── trend.py           # Regression detection
-│   ├── cli.py             # Typer CLI
-│   └── server.py          # HTTP server
-├── backend/               # SaaS API (FastAPI)
-├── frontend/              # React dashboard (Vite + TypeScript)
-├── tests/                 # 126 tests
-└── sentinel.yaml          # Example manifest
+│   ├── trend.py               # Regression detection
+│   ├── cli.py                 # Typer CLI
+│   └── server.py              # HTTP server
+├── backend/                   # SaaS API (FastAPI, stateless)
+├── frontend/                  # React dashboard
+│   ├── src/
+│   │   ├── components/        # UI components
+│   │   │   ├── AnalyzeForm.tsx
+│   │   │   ├── SummaryCards.tsx
+│   │   │   ├── MetricsBar.tsx
+│   │   │   ├── ViolationsTab.tsx
+│   │   │   ├── RemediationTab.tsx
+│   │   │   └── LoadingState.tsx
+│   │   ├── __tests__/         # Vitest + testing-library
+│   │   ├── api.ts             # Backend client
+│   │   ├── App.tsx            # Root component
+│   │   └── index.css          # Tailwind v4 theme
+│   └── package.json
+├── tests/                     # 126 Python tests
+└── sentinel.yaml              # Example manifest
 ```
+
+### Frontend Stack
+
+- **Tailwind CSS v4** — CSS-first config, no `tailwind.config.js`
+- **Geist Sans + Mono** — typography
+- **lucide-react** — icons
+- **framer-motion** — animations (shimmer, blur-fade, number-ticker)
+- **Vitest + testing-library** — 12 frontend tests
+- **Dark/Light mode** — toggle with `localStorage` persistence
 
 ## Contributing
 
