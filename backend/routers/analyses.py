@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 
 from fastapi import APIRouter, HTTPException
@@ -15,6 +16,9 @@ _GITHUB_URL_RE = re.compile(
     r"^(https?://github\.com/)?[\w.-]+/[\w.-]+(/.*)?$"
 )
 _BRANCH_RE = re.compile(r"^[\w./-]+$")
+
+MAX_CONCURRENT_ANALYSES = 3
+_semaphore = asyncio.Semaphore(MAX_CONCURRENT_ANALYSES)
 
 
 class AnalyzeRequest(BaseModel):
@@ -55,8 +59,16 @@ class AnalyzeRequest(BaseModel):
 @router.post("/analyze")
 async def analyze(request: AnalyzeRequest) -> dict:
     """Clone a repo, run Sentinel analysis, return results."""
+    if _semaphore.locked():
+        raise HTTPException(
+            status_code=429,
+            detail="Too many concurrent analyses — try again in a moment",
+        )
     try:
-        result = await run_analysis(request.repo_url, request.branch)
-        return result
+        async with _semaphore:
+            result = await run_analysis(request.repo_url, request.branch)
+            return result
+    except TimeoutError as exc:
+        raise HTTPException(status_code=504, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)[:500]) from exc
