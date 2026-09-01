@@ -245,20 +245,11 @@ export default function ViolationsTab({
                         <span className="shrink-0 text-xs text-muted">+{v.components.length - 1} more</span>
                       )}
                     </div>
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="mt-3 space-y-2 border-t border-border pt-3">
-                            {renderExpandedDetails(v)}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    {isExpanded && (
+                        <div className="mt-3 space-y-2 border-t border-border pt-3">
+                          {renderExpandedDetails(v)}
+                        </div>
+                    )}
                   </motion.div>
                 )
               })}

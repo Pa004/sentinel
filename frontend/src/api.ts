@@ -57,6 +57,10 @@ function setCache(repoUrl: string, branch: string, data: AnalysisResult): void {
   cache.set(key, { data, timestamp: Date.now() })
 }
 
+export function clearCache(): void {
+  cache.clear()
+}
+
 export async function analyze(repoUrl: string, branch: string): Promise<AnalysisResult> {
   const cached = getCached(repoUrl, branch)
   if (cached) return cached

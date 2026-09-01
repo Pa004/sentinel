@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { analyze } from "../api"
+import { analyze, clearCache } from "../api"
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  clearCache()
 })
 
 describe("analyze", () => {
