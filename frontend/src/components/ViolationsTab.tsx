@@ -240,11 +240,20 @@ export default function ViolationsTab({
                         <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${severityBadge[v.severity] ?? "text-content"}`}>
                           {v.severity}
                         </span>
-                        <CopyButton text={v.rule} label="rule name" />
+                        <span className="font-mono text-xs text-content">{v.rule}</span>
                       </div>
-                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted">{v.components.length} file(s)</span>
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
+                      </div>
                     </button>
-                    <p className="mt-1.5 text-xs text-muted">{v.evidence}</p>
+                    <p className="mt-1.5 text-xs text-muted line-clamp-2">{v.evidence}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="truncate text-xs text-muted">{v.components[0]}</span>
+                      {v.components.length > 1 && (
+                        <span className="shrink-0 text-xs text-muted">+{v.components.length - 1} more</span>
+                      )}
+                    </div>
                     <AnimatePresence>
                       {isExpanded && (
                         <motion.div
