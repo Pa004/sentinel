@@ -1,18 +1,12 @@
-"""Service to clone repos, run Sentinel analysis, and persist results."""
+"""Clone a repo, run Sentinel analysis, return results. No DB."""
 
 from __future__ import annotations
 
-import json
 import shutil
 import tempfile
-from datetime import UTC, datetime
 from pathlib import Path
 from subprocess import run
-
-from sqlalchemy import select
-
-from backend.database import async_session
-from backend.models import Analysis, Metrics, Violation
+from urllib.parse import urlparse
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -20,101 +14,92 @@ def _git(repo: Path, *args: str) -> None:
     run(["git", "-C", str(repo), *args], check=True, capture_output=True)
 
 
-async def run_analysis(analysis_id: int) -> None:
-    """Clone a repo, run Sentinel, save results, and clean up."""
-    async with async_session() as db:
-        result = await db.execute(select(Analysis).where(Analysis.id == analysis_id))
-        analysis = result.scalar_one_or_none()
-        if analysis is None:
-            return
+def _parse_repo_url(url: str) -> tuple[str, str]:
+    """Extract owner and name from a GitHub URL or 'owner/name' string."""
+    url = url.strip().rstrip("/")
+    url = url.removesuffix(".git")
 
-        analysis.status = "running"
-        await db.commit()
+    parsed = urlparse(url)
+    if parsed.path:
+        parts = parsed.path.strip("/").split("/")
+        if len(parts) >= 2:
+            return parts[0], parts[1]
 
-        tmp_dir = Path(tempfile.mkdtemp(prefix="sentinel_"))
-        repo_dir = tmp_dir / "repo"
+    if "/" in url:
+        parts = url.split("/")
+        return parts[-2], parts[-1]
 
-        try:
-            # Shallow clone
-            clone_url = f"https://github.com/{analysis.repo_owner}/{analysis.repo_name}.git"
-            _git(
-                tmp_dir, "clone", "--depth=1", "--branch", analysis.branch, clone_url, str(repo_dir)
-            )
+    raise ValueError(f"Cannot parse repo URL: {url}")
 
-            # Find sentinel manifest
-            manifest_path = repo_dir / "sentinel.yaml"
-            manifest = None
-            if manifest_path.exists():
-                from sentinel.manifest.loader import load_manifest
 
-                manifest = load_manifest(manifest_path)
+async def run_analysis(repo_url: str, branch: str = "main") -> dict:
+    """Clone repo, run analysis, return results dict."""
+    owner, name = _parse_repo_url(repo_url)
+    clone_url = f"https://github.com/{owner}/{name}.git"
 
-            # Run analysis
-            from sentinel.analyzers.coupling import coupling_scores
-            from sentinel.violation_engine import analyze_repository
+    tmp_dir = Path(tempfile.mkdtemp(prefix="sentinel_"))
+    repo_dir = tmp_dir / "repo"
 
-            git_root = repo_dir
-            analysis_result = analyze_repository(repo_dir, manifest, git_root=git_root)
+    try:
+        _git(tmp_dir, "clone", "--depth=1", "--branch", branch, clone_url, str(repo_dir))
 
-            # Compute metrics
-            graph = analysis_result.graph
-            nodes = len(graph.nodes())
-            edges_count = sum(len(graph.dependencies_of(n)) for n in graph.nodes())
-            coupling = coupling_scores(graph)
-            avg_coupling = sum(coupling.values()) / len(coupling) if coupling else 0.0
+        manifest_path = repo_dir / "sentinel.yaml"
+        manifest = None
+        if manifest_path.exists():
+            from sentinel.manifest.loader import load_manifest
 
-            # Count cycles (from violations)
-            cycles = sum(
-                1 for v in analysis_result.violations if v.kind.value == "circular_dependency"
-            )
+            manifest = load_manifest(manifest_path)
 
-            # Save violations
-            for v in analysis_result.violations:
-                db_violation = Violation(
-                    analysis_id=analysis.id,
-                    rule=v.rule,
-                    kind=v.kind.value,
-                    severity=v.severity.value,
-                    evidence=v.evidence,
-                    components=json.dumps(list(v.components)),
-                    impact=v.impact,
-                    recommendation=v.recommendation,
-                    commit_sha=v.commit,
-                )
-                db.add(db_violation)
+        from sentinel.analyzers.coupling import coupling_scores
+        from sentinel.violation_engine import analyze_repository
 
-            # Save metrics
-            db_metrics = Metrics(
-                analysis_id=analysis.id,
-                nodes=nodes,
-                edges=edges_count,
-                cycles=cycles,
-                avg_coupling=round(avg_coupling, 2),
-            )
-            db.add(db_metrics)
+        analysis_result = analyze_repository(repo_dir, manifest, git_root=repo_dir)
 
-            # Update analysis summary
-            analysis.total_violations = len(analysis_result.violations)
-            analysis.total_errors = sum(
-                1 for v in analysis_result.violations if v.severity.value == "error"
-            )
-            analysis.total_warnings = sum(
-                1 for v in analysis_result.violations if v.severity.value == "warning"
-            )
-            analysis.total_info = sum(
-                1 for v in analysis_result.violations if v.severity.value == "info"
-            )
-            analysis.drift_score = analysis_result.drift
-            analysis.status = "done"
-            analysis.completed_at = datetime.now(UTC)
+        graph = analysis_result.graph
+        nodes = len(graph.nodes())
+        edges_count = sum(len(graph.dependencies_of(n)) for n in graph.nodes())
+        coupling = coupling_scores(graph)
+        avg_coupling = sum(coupling.values()) / len(coupling) if coupling else 0.0
 
-            await db.commit()
+        cycles = sum(1 for v in analysis_result.violations if v.kind.value == "circular_dependency")
 
-        except Exception as exc:
-            analysis.status = "error"
-            analysis.error_message = str(exc)[:500]
-            analysis.completed_at = datetime.now(UTC)
-            await db.commit()
+        violations = [
+            {
+                "rule": v.rule,
+                "kind": v.kind.value,
+                "severity": v.severity.value,
+                "evidence": v.evidence,
+                "components": list(v.components),
+                "impact": v.impact,
+                "recommendation": v.recommendation,
+                "commit_sha": v.commit,
+            }
+            for v in analysis_result.violations
+        ]
 
-        finally:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+        total = len(violations)
+        errors = sum(1 for v in violations if v["severity"] == "error")
+        warnings = sum(1 for v in violations if v["severity"] == "warning")
+        info = sum(1 for v in violations if v["severity"] == "info")
+
+        return {
+            "repo_owner": owner,
+            "repo_name": name,
+            "branch": branch,
+            "status": "done",
+            "total_violations": total,
+            "total_errors": errors,
+            "total_warnings": warnings,
+            "total_info": info,
+            "drift_score": analysis_result.drift,
+            "violations": violations,
+            "metrics": {
+                "nodes": nodes,
+                "edges": edges_count,
+                "cycles": cycles,
+                "avg_coupling": round(avg_coupling, 2),
+            },
+        }
+
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
