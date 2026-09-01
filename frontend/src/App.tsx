@@ -1,285 +1,155 @@
-import { useState } from "react";
-import { analyze } from "./api";
-import type { Violation, Metrics, AnalysisResult } from "./api";
+import { useState, useEffect } from "react"
+import { Sun, Moon } from "lucide-react"
+import { motion } from "framer-motion"
+import { analyze } from "./api"
+import type { Violation, AnalysisResult } from "./api"
+import AnalyzeForm from "./components/AnalyzeForm"
+import SummaryCards from "./components/SummaryCards"
+import MetricsBar from "./components/MetricsBar"
+import ViolationsTab from "./components/ViolationsTab"
+import RemediationTab from "./components/RemediationTab"
+import LoadingState from "./components/LoadingState"
+
+function useTheme() {
+  const [dark, setDark] = useState(() => {
+    const stored = localStorage.getItem("sentinel-theme")
+    return stored ? stored === "dark" : true
+  })
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark)
+    document.documentElement.classList.toggle("light", !dark)
+    localStorage.setItem("sentinel-theme", dark ? "dark" : "light")
+  }, [dark])
+
+  return { dark, toggle: () => setDark((d) => !d) }
+}
 
 export default function App() {
-  const [repoUrl, setRepoUrl] = useState("");
-  const [branch, setBranch] = useState("main");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [activeTab, setActiveTab] = useState<"violations" | "remediation">("violations");
-  const [severityFilter, setSeverityFilter] = useState("");
-  const [kindFilter, setKindFilter] = useState("");
-  const [search, setSearch] = useState("");
+  const { dark, toggle } = useTheme()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [activeTab, setActiveTab] = useState<"violations" | "remediation">("violations")
+  const [severityFilter, setSeverityFilter] = useState("")
+  const [kindFilter, setKindFilter] = useState("")
+  const [search, setSearch] = useState("")
 
-  const handleAnalyze = async () => {
-    if (!repoUrl.trim()) return;
-    setLoading(true);
-    setError("");
-    setResult(null);
+  const handleAnalyze = async (url: string, br: string) => {
+    setLoading(true)
+    setError("")
+    setResult(null)
     try {
-      const data = await analyze(repoUrl, branch);
-      setResult(data);
+      const data = await analyze(url, br)
+      setResult(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed");
+      setError(err instanceof Error ? err.message : "Analysis failed")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const violations: Violation[] = result?.violations ?? [];
-  const metrics: Metrics | null = result?.metrics ?? null;
-
-  const kinds = [...new Set(violations.map((v) => v.kind))].sort();
-  const severities = ["error", "warning", "info"];
+  const violations: Violation[] = result?.violations ?? []
+  const metrics = result?.metrics ?? null
 
   const filtered = violations.filter((v) => {
-    if (severityFilter && v.severity !== severityFilter) return false;
-    if (kindFilter && v.kind !== kindFilter) return false;
+    if (severityFilter && v.severity !== severityFilter) return false
+    if (kindFilter && v.kind !== kindFilter) return false
     if (search) {
-      const q = search.toLowerCase();
+      const q = search.toLowerCase()
       return (
         v.evidence.toLowerCase().includes(q) ||
         v.impact.toLowerCase().includes(q) ||
         v.rule.toLowerCase().includes(q)
-      );
+      )
     }
-    return true;
-  });
+    return true
+  })
 
   const counts = {
-    error: violations.filter((v) => v.severity === "error").length,
-    warning: violations.filter((v) => v.severity === "warning").length,
-    info: violations.filter((v) => v.severity === "info").length,
     total: violations.length,
-  };
+    errors: violations.filter((v) => v.severity === "error").length,
+    warnings: violations.filter((v) => v.severity === "warning").length,
+    info: violations.filter((v) => v.severity === "info").length,
+  }
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 24, fontFamily: "system-ui, sans-serif", background: "#0d1117", color: "#c9d1d9", minHeight: "100vh" }}>
-      <h1 style={{ fontSize: "1.4rem", marginBottom: 20 }}>Sentinel</h1>
+    <div className="min-h-screen bg-surface-0 text-content">
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="text-xl font-bold tracking-tight">Sentinel</h1>
+          <button
+            onClick={toggle}
+            className="rounded-md p-2 text-muted hover:bg-surface-2 hover:text-content transition-colors"
+            aria-label="Toggle theme"
+          >
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
 
-      {/* Input form */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 24, alignItems: "center" }}>
-        <input
-          type="text"
-          placeholder="GitHub repo URL or owner/name"
-          value={repoUrl}
-          onChange={(e) => setRepoUrl(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAnalyze()}
-          style={{ flex: 1, background: "#161b22", color: "#c9d1d9", border: "1px solid #30363d", borderRadius: 6, padding: "10px 14px", fontSize: ".9rem" }}
-        />
-        <input
-          type="text"
-          placeholder="Branch"
-          value={branch}
-          onChange={(e) => setBranch(e.target.value)}
-          style={{ width: 120, background: "#161b22", color: "#c9d1d9", border: "1px solid #30363d", borderRadius: 6, padding: "10px 14px", fontSize: ".9rem" }}
-        />
-        <button
-          onClick={handleAnalyze}
-          disabled={!repoUrl.trim() || loading}
-          style={{
-            background: repoUrl.trim() && !loading ? "#238636" : "#21262d",
-            color: repoUrl.trim() && !loading ? "#fff" : "#8b949e",
-            border: "none",
-            borderRadius: 6,
-            padding: "10px 24px",
-            cursor: repoUrl.trim() && !loading ? "pointer" : "not-allowed",
-            fontSize: ".9rem",
-            fontWeight: 600,
-          }}
-        >
-          {loading ? "Analyzing..." : "Analyze"}
-        </button>
+        <AnalyzeForm onAnalyze={handleAnalyze} loading={loading} />
+
+        {error && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-4 rounded-md border border-error/30 bg-error/10 p-4 text-sm text-error"
+          >
+            {error}
+          </motion.div>
+        )}
+
+        {loading && <div className="mt-6"><LoadingState /></div>}
+
+        {result && !loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-6 space-y-5"
+          >
+            <SummaryCards
+              total={counts.total}
+              errors={counts.errors}
+              warnings={counts.warnings}
+              info={counts.info}
+              drift={result.drift_score}
+            />
+
+            {metrics && <MetricsBar metrics={metrics} />}
+
+            <div className="flex gap-2">
+              {(["violations", "remediation"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                    activeTab === tab
+                      ? "bg-surface-2 text-content border border-border"
+                      : "text-muted hover:text-content"
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {activeTab === "violations" ? (
+              <ViolationsTab
+                violations={violations}
+                filtered={filtered}
+                severityFilter={severityFilter}
+                kindFilter={kindFilter}
+                search={search}
+                onSeverityChange={setSeverityFilter}
+                onKindChange={setKindFilter}
+                onSearchChange={setSearch}
+              />
+            ) : (
+              <RemediationTab violations={violations} />
+            )}
+          </motion.div>
+        )}
       </div>
-
-      {/* Error */}
-      {error && (
-        <div style={{ background: "#161b22", border: "1px solid #f8514933", borderRadius: 8, padding: 16, color: "#f85149", marginBottom: 20 }}>
-          {error}
-        </div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 40, textAlign: "center", color: "#d29922" }}>
-          <div style={{ fontSize: "1.1rem", marginBottom: 8 }}>Analyzing repository...</div>
-          <div style={{ fontSize: ".85rem", color: "#8b949e" }}>Cloning, parsing, and running detection rules.</div>
-        </div>
-      )}
-
-      {/* Results */}
-      {result && !loading && (
-        <>
-          {/* Summary cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
-            {[
-              { label: "Total", value: counts.total, color: "#c9d1d9" },
-              { label: "Errors", value: counts.error, color: "#f85149" },
-              { label: "Warnings", value: counts.warning, color: "#d29922" },
-              { label: "Info", value: counts.info, color: "#58a6ff" },
-              { label: "Drift", value: result.drift_score.toFixed(2), color: "#f85149" },
-            ].map((c) => (
-              <div key={c.label} style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "12px 16px", textAlign: "center" }}>
-                <div style={{ fontSize: "1.8rem", fontWeight: 700, color: c.color }}>{c.value}</div>
-                <div style={{ fontSize: ".75rem", color: "#8b949e" }}>{c.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Metrics */}
-          {metrics && (
-            <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: "16px 20px", marginBottom: 20 }}>
-              <h3 style={{ fontSize: ".9rem", marginBottom: 12, color: "#8b949e" }}>Architecture Metrics</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
-                {[
-                  { label: "Nodes", value: metrics.nodes ?? "-" },
-                  { label: "Edges", value: metrics.edges ?? "-" },
-                  { label: "Cycles", value: metrics.cycles ?? 0, color: (metrics.cycles ?? 0) > 0 ? "#f85149" : "#3fb950" },
-                  { label: "Avg Coupling", value: metrics.avg_coupling?.toFixed(1) ?? "-" },
-                ].map((m) => (
-                  <div key={m.label} style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: "1.3rem", fontWeight: 700, color: (m as { color?: string }).color ?? "#c9d1d9" }}>{m.value}</div>
-                    <div style={{ fontSize: ".7rem", color: "#8b949e" }}>{m.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Tab navigation */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-            {(["violations", "remediation"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  background: activeTab === tab ? "#21262d" : "transparent",
-                  color: activeTab === tab ? "#c9d1d9" : "#8b949e",
-                  border: `1px solid ${activeTab === tab ? "#30363d" : "transparent"}`,
-                  borderRadius: 6,
-                  padding: "6px 16px",
-                  cursor: "pointer",
-                  fontSize: ".85rem",
-                  textTransform: "capitalize",
-                }}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* Violations tab */}
-          {activeTab === "violations" && (
-            <>
-              <div style={{ display: "flex", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
-                <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)}
-                  style={{ background: "#161b22", color: "#c9d1d9", border: "1px solid #30363d", borderRadius: 6, padding: "6px 10px" }}>
-                  <option value="">Severity: all</option>
-                  {severities.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)}
-                  style={{ background: "#161b22", color: "#c9d1d9", border: "1px solid #30363d", borderRadius: 6, padding: "6px 10px" }}>
-                  <option value="">Kind: all</option>
-                  {kinds.map((k) => <option key={k} value={k}>{k}</option>)}
-                </select>
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{ background: "#161b22", color: "#c9d1d9", border: "1px solid #30363d", borderRadius: 6, padding: "6px 10px", minWidth: 200 }}
-                />
-              </div>
-
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #30363d", textAlign: "left" }}>
-                    <th style={{ padding: "8px 12px", color: "#8b949e", fontSize: ".8rem", textTransform: "uppercase" }}>Severity</th>
-                    <th style={{ padding: "8px 12px", color: "#8b949e", fontSize: ".8rem", textTransform: "uppercase" }}>Rule</th>
-                    <th style={{ padding: "8px 12px", color: "#8b949e", fontSize: ".8rem", textTransform: "uppercase" }}>Evidence</th>
-                    <th style={{ padding: "8px 12px", color: "#8b949e", fontSize: ".8rem", textTransform: "uppercase" }}>Components</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr><td colSpan={4} style={{ padding: 24, textAlign: "center", color: "#3fb950" }}>No violations found — architecture is clean.</td></tr>
-                  ) : (
-                    filtered.map((v, i) => (
-                      <tr key={i} style={{ borderBottom: "1px solid #21262d" }}>
-                        <td style={{ padding: "8px 12px" }}>
-                          <span style={{
-                            color: v.severity === "error" ? "#f85149" : v.severity === "warning" ? "#d29922" : "#58a6ff",
-                            fontWeight: 600,
-                          }}>{v.severity}</span>
-                        </td>
-                        <td style={{ padding: "8px 12px" }}>{v.rule}</td>
-                        <td style={{ padding: "8px 12px", fontSize: ".85rem", maxWidth: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.evidence}</td>
-                        <td style={{ padding: "8px 12px", fontSize: ".85rem" }}>{v.components.join(" → ")}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-              <div style={{ marginTop: 16, fontSize: ".8rem", color: "#8b949e" }}>
-                Showing {filtered.length} of {violations.length} violations
-              </div>
-            </>
-          )}
-
-          {/* Remediation tab */}
-          {activeTab === "remediation" && (
-            <div>
-              {violations.length === 0 ? (
-                <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 8, padding: 40, textAlign: "center", color: "#3fb950" }}>
-                  No violations to remediate — architecture is clean.
-                </div>
-              ) : (
-                <>
-                  {(["error", "warning", "info"] as const).map((sev) => {
-                    const sevViolations = violations
-                      .filter((v) => v.severity === sev)
-                      .sort((a, b) => a.rule.localeCompare(b.rule));
-                    if (sevViolations.length === 0) return null;
-                    const color = sev === "error" ? "#f85149" : sev === "warning" ? "#d29922" : "#58a6ff";
-                    return (
-                      <div key={sev} style={{ marginBottom: 24 }}>
-                        <h3 style={{ fontSize: ".9rem", marginBottom: 12, color, display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: color }} />
-                          {sev.charAt(0).toUpperCase() + sev.slice(1)}s — {sevViolations.length}
-                        </h3>
-                        {sevViolations.map((v, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              background: "#161b22",
-                              border: "1px solid #30363d",
-                              borderLeft: `3px solid ${color}`,
-                              borderRadius: 8,
-                              padding: "16px 20px",
-                              marginBottom: 10,
-                            }}
-                          >
-                            <div style={{ fontWeight: 600, fontSize: ".9rem", marginBottom: 8 }}>{v.rule}</div>
-                            <div style={{ fontSize: ".8rem", color: "#8b949e", marginBottom: 6 }}>{v.evidence}</div>
-                            <div style={{ fontSize: ".85rem", marginBottom: 6 }}>
-                              <span style={{ color: "#8b949e" }}>Impact: </span>{v.impact}
-                            </div>
-                            <div style={{ fontSize: ".85rem", background: "#21262d", borderRadius: 6, padding: "8px 12px", borderLeft: "2px solid #3fb950" }}>
-                              <span style={{ color: "#3fb950", fontWeight: 600 }}>Recommendation: </span>{v.recommendation}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </>
-              )}
-            </div>
-          )}
-        </>
-      )}
     </div>
-  );
+  )
 }
