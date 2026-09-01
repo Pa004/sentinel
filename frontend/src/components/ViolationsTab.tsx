@@ -233,14 +233,32 @@ export default function ViolationsTab({
                         </span>
                         <span className="font-mono text-xs text-content">{v.rule}</span>
                       </div>
-                      {isExpanded ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
-                    </button>
-                    <p className="mt-1.5 text-xs text-muted">{v.evidence}</p>
-                    {isExpanded && (
-                      <div className="mt-3 space-y-2 border-t border-border pt-3">
-                        {renderExpandedDetails(v)}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted">{v.components.length} file(s)</span>
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
                       </div>
-                    )}
+                    </button>
+                    <p className="mt-1.5 text-xs text-muted line-clamp-2">{v.evidence}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="truncate text-xs text-muted">{v.components[0]}</span>
+                      {v.components.length > 1 && (
+                        <span className="shrink-0 text-xs text-muted">+{v.components.length - 1} more</span>
+                      )}
+                    </div>
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-3 space-y-2 border-t border-border pt-3">
+                            {renderExpandedDetails(v)}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </motion.div>
                 )
               })}
