@@ -17,6 +17,7 @@ import FeatureCards from "./components/FeatureCards"
 import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
+import { usePerformance } from "./hooks/usePerformance"
 import { useToast } from "./components/Toast"
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
 import { useHistory } from "./hooks/useHistory"
@@ -43,6 +44,7 @@ type TabKey = (typeof TABS)[number]
 export default function App() {
   const { dark, toggle } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
+  const { metrics: perfMetrics, startTimer, endTimer } = usePerformance()
   const { addToast } = useToast()
   const { history, addEntry, clearHistory } = useHistory()
   const [loading, setLoading] = useState(false)
@@ -65,8 +67,10 @@ export default function App() {
     setError("")
     setResult(null)
     setLastAnalyzed({ url, branch: br })
+    startTimer()
     try {
       const data = await analyze(url, br)
+      endTimer()
       setResult(data)
       if (data.total_violations === 0) {
         addToast("No violations found — architecture looks clean!", "success")
@@ -265,6 +269,12 @@ export default function App() {
               info={counts.info}
               drift={result.drift_score}
             />
+
+            {perfMetrics.analysisTimeMs !== null && (
+              <p className="text-xs text-muted text-right">
+                Analyzed in {(perfMetrics.analysisTimeMs / 1000).toFixed(1)}s
+              </p>
+            )}
 
             <div className="flex items-center justify-between">
               {metrics && <MetricsBar metrics={metrics} />}
