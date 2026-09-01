@@ -2,6 +2,9 @@
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const cache = new Map<string, { data: AnalysisResult; timestamp: number }>();
+
 export interface Violation {
   rule: string;
   kind: string;
@@ -34,7 +37,29 @@ export interface AnalysisResult {
   metrics: Metrics;
 }
 
+function cacheKey(repoUrl: string, branch: string): string {
+  return `${repoUrl.trim().toLowerCase()}@${branch.trim()}`
+}
+
+function getCached(repoUrl: string, branch: string): AnalysisResult | null {
+  const key = cacheKey(repoUrl, branch)
+  const entry = cache.get(key)
+  if (entry && Date.now() - entry.timestamp < CACHE_TTL_MS) {
+    return entry.data
+  }
+  cache.delete(key)
+  return null
+}
+
+function setCache(repoUrl: string, branch: string, data: AnalysisResult): void {
+  const key = cacheKey(repoUrl, branch)
+  cache.set(key, { data, timestamp: Date.now() })
+}
+
 export async function analyze(repoUrl: string, branch: string): Promise<AnalysisResult> {
+  const cached = getCached(repoUrl, branch)
+  if (cached) return cached
+
   const resp = await fetch(`${API_URL}/api/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -44,5 +69,7 @@ export async function analyze(repoUrl: string, branch: string): Promise<Analysis
     const error = await resp.json().catch(() => ({ detail: resp.statusText }));
     throw new Error(error.detail || `HTTP ${resp.status}`);
   }
-  return resp.json();
+  const data: AnalysisResult = await resp.json()
+  setCache(repoUrl, branch, data)
+  return data
 }
