@@ -33,7 +33,7 @@ export default function SummaryCards({ total, errors, warnings, info, drift }: S
             transition={{ delay: i * 0.05 }}
             className="rounded-md border border-border bg-surface-1 p-4 text-center"
           >
-            <Icon className={`mx-auto mb-1 h-4 w-4 ${card.colorClass}`} />
+            <Icon className={`mx-auto mb-1 h-4 w-4 ${card.colorClass}`} aria-hidden="true" />
             <motion.div
               key={val}
               initial={{ scale: 1.2, opacity: 0 }}
