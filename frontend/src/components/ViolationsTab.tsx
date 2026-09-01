@@ -166,55 +166,46 @@ export default function ViolationsTab({
                 </tr>
               </thead>
               <tbody>
-                <AnimatePresence>
-                  {sorted.map((v, i) => {
-                    const idx = violations.indexOf(v)
-                    const isExpanded = expandedIndex === idx
-                    return (
-                      <motion.tr
-                        key={`${v.rule}-${idx}`}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ delay: i * 0.02 }}
-                        className={`cursor-pointer border-b border-border/50 last:border-0 transition-colors hover:bg-surface-1 ${isExpanded ? "bg-surface-1" : ""}`}
-                        onClick={() => setExpandedIndex(isExpanded ? null : idx)}
-                      >
-                        <td className="px-3 py-2">
-                          <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${severityBadge[v.severity] ?? "text-content"}`}>
-                            {v.severity}
-                          </span>
+                {sorted.flatMap((v, i) => {
+                  const idx = violations.indexOf(v)
+                  const isExpanded = expandedIndex === idx
+                  return [
+                    <motion.tr
+                      key={`${v.rule}-${idx}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ delay: i * 0.02 }}
+                      className={`cursor-pointer border-b border-border/50 last:border-0 transition-colors hover:bg-surface-1 ${isExpanded ? "bg-surface-1" : ""}`}
+                      onClick={() => setExpandedIndex(isExpanded ? null : idx)}
+                    >
+                      <td className="px-3 py-2">
+                        <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${severityBadge[v.severity] ?? "text-content"}`}>
+                          {v.severity}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs text-content">
+                        <CopyButton text={v.rule} label="rule name" />
+                      </td>
+                      <td className="max-w-xs truncate px-3 py-2 text-xs text-muted" title={v.evidence}>
+                        {v.evidence}
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted">{v.components.join(" → ")}</td>
+                    </motion.tr>,
+                    isExpanded && (
+                      <tr key={`expanded-${v.rule}-${idx}`} className="border-b border-border/50 bg-surface-1">
+                        <td colSpan={4} className="px-3 py-3">
+                          <div className="space-y-3 pl-2">
+                            {renderExpandedDetails(v)}
+                          </div>
                         </td>
-                        <td className="px-3 py-2 font-mono text-xs text-content">
-                          <CopyButton text={v.rule} label="rule name" />
-                        </td>
-                        <td className="max-w-xs truncate px-3 py-2 text-xs text-muted" title={v.evidence}>
-                          {v.evidence}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-muted">{v.components.join(" → ")}</td>
-                      </motion.tr>
-                    )
-                  })}
-                </AnimatePresence>
+                      </tr>
+                    ),
+                  ].filter(Boolean)
+                })}
               </tbody>
             </table>
           </div>
-
-          {/* Expanded details panel */}
-          <AnimatePresence>
-            {expandedIndex !== null && sorted[expandedIndex] && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden rounded-md border border-border bg-surface-1 sm:mt-0 sm:hidden"
-              >
-                <div className="p-4 space-y-3">
-                  {renderExpandedDetails(sorted[expandedIndex])}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           {/* Mobile card layout */}
           <div className="space-y-2 sm:hidden">
@@ -240,25 +231,16 @@ export default function ViolationsTab({
                         <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-semibold ${severityBadge[v.severity] ?? "text-content"}`}>
                           {v.severity}
                         </span>
-                        <CopyButton text={v.rule} label="rule name" />
+                        <span className="font-mono text-xs text-content">{v.rule}</span>
                       </div>
                       {isExpanded ? <ChevronUp className="h-4 w-4 text-muted" /> : <ChevronDown className="h-4 w-4 text-muted" />}
                     </button>
                     <p className="mt-1.5 text-xs text-muted">{v.evidence}</p>
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="mt-3 space-y-2 border-t border-border pt-3">
-                            {renderExpandedDetails(v)}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    {isExpanded && (
+                      <div className="mt-3 space-y-2 border-t border-border pt-3">
+                        {renderExpandedDetails(v)}
+                      </div>
+                    )}
                   </motion.div>
                 )
               })}

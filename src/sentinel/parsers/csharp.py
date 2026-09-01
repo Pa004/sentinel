@@ -56,11 +56,10 @@ class CSharpParser(ParserBase):
         for node in walk(tree):
             if node.type == "using_directive":
                 text = node.text.decode("utf-8").strip()
-                # `using MyApp.Domain;` -> `Domain` (file stem match).
+                # `using MyApp.Domain;` -> `MyApp.Domain`
                 parts = text.split()
                 if len(parts) >= 2:
                     fqn = parts[1].strip().rstrip(";")
-                    short = fqn.split(".")[-1]
-                    if short:
-                        imports.append((short, node.start_point[0] + 1))
+                    if fqn:
+                        imports.append((fqn, node.start_point[0] + 1))
         return imports

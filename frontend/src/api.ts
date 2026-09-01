@@ -2,6 +2,7 @@
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+const TIMEOUT_MS = 120_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, { data: AnalysisResult; timestamp: number }>();
 
@@ -60,16 +61,29 @@ export async function analyze(repoUrl: string, branch: string): Promise<Analysis
   const cached = getCached(repoUrl, branch)
   if (cached) return cached
 
-  const resp = await fetch(`${API_URL}/api/analyze`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ repo_url: repoUrl, branch }),
-  });
-  if (!resp.ok) {
-    const error = await resp.json().catch(() => ({ detail: resp.statusText }));
-    throw new Error(error.detail || `HTTP ${resp.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const resp = await fetch(`${API_URL}/api/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_url: repoUrl, branch }),
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      const error = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(error.detail || `HTTP ${resp.status}`);
+    }
+    const data: AnalysisResult = await resp.json()
+    setCache(repoUrl, branch, data)
+    return data
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`Request timed out after ${TIMEOUT_MS / 1000}s — the repository may be too large or unreachable`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  const data: AnalysisResult = await resp.json()
-  setCache(repoUrl, branch, data)
-  return data
 }

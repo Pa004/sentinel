@@ -45,24 +45,24 @@ def load_manifest(path: Path) -> ArchitectureManifest:
     return ArchitectureManifest(layers, rules)
 
 
-def _parse_rules(raw: object) -> dict[str, dict[str, int]]:
+def _parse_rules(raw: object) -> dict[str, dict[str, int | float]]:
     """Validate the optional `rules` block and return per-rule tuning."""
     if raw is None:
         return {}
     if not isinstance(raw, dict):
         raise ManifestError("'rules' must be a mapping")
-    result: dict[str, dict[str, int]] = {}
+    result: dict[str, dict[str, int | float]] = {}
     for key, spec in raw.items():
         if key not in VALID_RULE_KEYS:
             raise ManifestError(f"unknown rule '{key}'; valid: {sorted(VALID_RULE_KEYS)}")
         if not isinstance(spec, dict):
             raise ManifestError(f"rule '{key}' must be a mapping")
-        tuning: dict[str, int] = {}
+        tuning: dict[str, int | float] = {}
         for name, value in spec.items():
             if name != "threshold":
                 raise ManifestError(f"rule '{key}' only supports 'threshold', got '{name}'")
-            if not isinstance(value, int) or value < 0:
-                raise ManifestError(f"rule '{key}' threshold must be a non-negative integer")
+            if not isinstance(value, (int, float)) or value < 0:
+                raise ManifestError(f"rule '{key}' threshold must be a non-negative number")
             tuning[name] = value
         result[key] = tuning
     return result
