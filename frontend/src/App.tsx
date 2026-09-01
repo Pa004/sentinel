@@ -18,6 +18,7 @@ import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
 import { usePerformance } from "./hooks/usePerformance"
+import { useAnalytics } from "./hooks/useAnalytics"
 import { useToast } from "./components/Toast"
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
 import { useHistory } from "./hooks/useHistory"
@@ -45,6 +46,7 @@ export default function App() {
   const { dark, toggle } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
   const { metrics: perfMetrics, startTimer, endTimer } = usePerformance()
+  const { track } = useAnalytics()
   const { addToast } = useToast()
   const { history, addEntry, clearHistory } = useHistory()
   const [loading, setLoading] = useState(false)
@@ -68,10 +70,18 @@ export default function App() {
     setResult(null)
     setLastAnalyzed({ url, branch: br })
     startTimer()
+    track("analysis_start", { repo: url, branch: br })
     try {
       const data = await analyze(url, br)
-      endTimer()
+      const elapsed = endTimer()
       setResult(data)
+      track("analysis_complete", {
+        repo: url,
+        branch: br,
+        violations: data.total_violations,
+        drift: data.drift_score,
+        timeMs: Math.round(elapsed),
+      })
       if (data.total_violations === 0) {
         addToast("No violations found — architecture looks clean!", "success")
       } else {
@@ -86,6 +96,7 @@ export default function App() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Analysis failed"
       setError(msg)
+      track("analysis_error", { repo: url, error: msg })
       addToast(msg, "error")
     } finally {
       setLoading(false)
