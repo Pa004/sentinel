@@ -17,6 +17,7 @@ import FeatureCards from "./components/FeatureCards"
 import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
+import { useToast } from "./components/Toast"
 import { useHistory } from "./hooks/useHistory"
 import HistoryPanel from "./components/HistoryPanel"
 
@@ -41,6 +42,7 @@ type TabKey = (typeof TABS)[number]
 export default function App() {
   const { dark, toggle } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
+  const { addToast } = useToast()
   const { history, addEntry, clearHistory } = useHistory()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -65,6 +67,11 @@ export default function App() {
     try {
       const data = await analyze(url, br)
       setResult(data)
+      if (data.total_violations === 0) {
+        addToast("No violations found — architecture looks clean!", "success")
+      } else {
+        addToast(`Found ${data.total_violations} violation(s)`, "info")
+      }
       addEntry({
         url,
         branch: br,
@@ -72,7 +79,9 @@ export default function App() {
         drift: data.drift_score,
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Analysis failed")
+      const msg = err instanceof Error ? err.message : "Analysis failed"
+      setError(msg)
+      addToast(msg, "error")
     } finally {
       setLoading(false)
     }
