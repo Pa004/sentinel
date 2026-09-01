@@ -65,8 +65,8 @@ def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
     return (
         LayerViolationRule(),
         CircularDependencyRule(),
-        GodModuleRule(manifest.rule_threshold("god_module", GOD_MODULE_DEFAULT)),
-        HighCouplingRule(manifest.rule_threshold("high_coupling", HIGH_COUPLING_DEFAULT)),
+        GodModuleRule(manifest.rule_threshold("god-module", GOD_MODULE_DEFAULT)),
+        HighCouplingRule(manifest.rule_threshold("high-coupling", HIGH_COUPLING_DEFAULT)),
         LowCohesionRule(
             threshold=manifest.rule_threshold("low_cohesion", LOW_COHESION_THRESHOLD),
             min_symbols=manifest.rule_threshold(
