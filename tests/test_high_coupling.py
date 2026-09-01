@@ -55,7 +55,7 @@ def test_high_coupling_rule_respects_threshold() -> None:
 def test_analyze_uses_manifest_threshold(tmp_path: Path) -> None:
     repo = _write_repo(tmp_path)
     # low threshold -> high-coupling flagged
-    tight = ArchitectureManifest(MANIFEST.layers, {"high_coupling": {"threshold": 2}})
+    tight = ArchitectureManifest(MANIFEST.layers, {"high-coupling": {"threshold": 2}})
     result = analyze_repository(repo, tight)
     kinds = {v.kind for v in result.violations}
     assert ViolationKind.HIGH_COUPLING in kinds
