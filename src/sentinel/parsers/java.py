@@ -56,11 +56,10 @@ class JavaParser(ParserBase):
         for node in walk(tree):
             if node.type == "import_declaration":
                 text = node.text.decode("utf-8").strip()
-                # `import com.example.model.User;` -> `User` (file stem match).
+                # `import com.example.model.User;` -> `com.example.model.User`
                 parts = text.split()
                 if len(parts) >= 2:
                     fqn = parts[1].strip().rstrip(";")
-                    short = fqn.split(".")[-1]
-                    if short and not short.endswith("*"):
-                        imports.append((short, node.start_point[0] + 1))
+                    if fqn and not fqn.endswith("*"):
+                        imports.append((fqn, node.start_point[0] + 1))
         return imports
