@@ -8,6 +8,7 @@ import SummaryCards from "./components/SummaryCards"
 import MetricsBar from "./components/MetricsBar"
 import ViolationsTab from "./components/ViolationsTab"
 import RemediationTab from "./components/RemediationTab"
+import ShareButton from "./components/ShareButton"
 import SkeletonCards from "./components/SkeletonCards"
 import SkeletonMetrics from "./components/SkeletonMetrics"
 import SkeletonTable from "./components/SkeletonTable"
@@ -229,7 +230,13 @@ export default function App() {
               drift={result.drift_score}
             />
 
-            {metrics && <MetricsBar metrics={metrics} />}
+            <div className="flex items-center justify-between">
+              {metrics && <MetricsBar metrics={metrics} />}
+              <ShareButton
+                repoUrl={lastAnalyzed?.url ?? ""}
+                branch={lastAnalyzed?.branch ?? "main"}
+              />
+            </div>
 
             <div
               role="tablist"
