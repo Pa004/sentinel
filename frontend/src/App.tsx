@@ -9,6 +9,7 @@ import MetricsBar from "./components/MetricsBar"
 import ViolationsTab from "./components/ViolationsTab"
 import RemediationTab from "./components/RemediationTab"
 import ShareButton from "./components/ShareButton"
+import ExportButton from "./components/ExportButton"
 import SkeletonCards from "./components/SkeletonCards"
 import SkeletonMetrics from "./components/SkeletonMetrics"
 import SkeletonTable from "./components/SkeletonTable"
@@ -232,10 +233,13 @@ export default function App() {
 
             <div className="flex items-center justify-between">
               {metrics && <MetricsBar metrics={metrics} />}
-              <ShareButton
-                repoUrl={lastAnalyzed?.url ?? ""}
-                branch={lastAnalyzed?.branch ?? "main"}
-              />
+              <div className="flex items-center gap-2">
+                <ShareButton
+                  repoUrl={lastAnalyzed?.url ?? ""}
+                  branch={lastAnalyzed?.branch ?? "main"}
+                />
+                <ExportButton result={result} />
+              </div>
             </div>
 
             <div
