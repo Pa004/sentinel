@@ -2,6 +2,8 @@
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
+const TIMEOUT_MS = 120_000;
+
 export interface Violation {
   rule: string;
   kind: string;
@@ -35,14 +37,27 @@ export interface AnalysisResult {
 }
 
 export async function analyze(repoUrl: string, branch: string): Promise<AnalysisResult> {
-  const resp = await fetch(`${API_URL}/api/analyze`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ repo_url: repoUrl, branch }),
-  });
-  if (!resp.ok) {
-    const error = await resp.json().catch(() => ({ detail: resp.statusText }));
-    throw new Error(error.detail || `HTTP ${resp.status}`);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const resp = await fetch(`${API_URL}/api/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ repo_url: repoUrl, branch }),
+      signal: controller.signal,
+    });
+    if (!resp.ok) {
+      const error = await resp.json().catch(() => ({ detail: resp.statusText }));
+      throw new Error(error.detail || `HTTP ${resp.status}`);
+    }
+    return resp.json();
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`Request timed out after ${TIMEOUT_MS / 1000}s — the repository may be too large or unreachable`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
   }
-  return resp.json();
 }
