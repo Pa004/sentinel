@@ -44,11 +44,14 @@ async def run_analysis(repo_url: str, branch: str = "main") -> dict:
         _git(tmp_dir, "clone", "--depth=1", "--branch", branch, clone_url, str(repo_dir))
 
         manifest_path = repo_dir / "sentinel.yaml"
-        manifest = None
         if manifest_path.exists():
             from sentinel.manifest.loader import load_manifest
 
             manifest = load_manifest(manifest_path)
+        else:
+            from sentinel.domain.manifest import ArchitectureManifest
+
+            manifest = ArchitectureManifest(layers={})
 
         from sentinel.analyzers.coupling import coupling_scores
         from sentinel.violation_engine import analyze_repository
