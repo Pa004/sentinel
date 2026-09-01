@@ -4,7 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-VALID_RULE_KEYS = {"god_module", "high_coupling"}
+VALID_RULE_KEYS = {
+    "circular-dependency",
+    "god-module",
+    "high-coupling",
+    "layer-violation",
+    "database-leakage",
+    "low_cohesion",
+    "boundary_crossing",
+    "react_oversized_component",
+    "react_too_many_props",
+}
 
 
 @dataclass(frozen=True)
@@ -26,7 +36,7 @@ class ArchitectureManifest:
     """
 
     layers: dict[str, Layer]
-    rules: dict[str, dict[str, int]] = field(default_factory=dict)
+    rules: dict[str, dict[str, int | float]] = field(default_factory=dict)
 
     def layer_names(self) -> tuple[str, ...]:
         return tuple(self.layers.keys())
@@ -47,5 +57,5 @@ class ArchitectureManifest:
             return True
         return src.may_depend_on_layer(target_layer)
 
-    def rule_threshold(self, rule_key: str, default: int) -> int:
-        return int(self.rules.get(rule_key, {}).get("threshold", default))
+    def rule_threshold(self, rule_key: str, default: int | float) -> int | float:
+        return self.rules.get(rule_key, {}).get("threshold", default)

@@ -80,13 +80,13 @@ def test_mapper_fallback_to_first_segment(tmp_path: Path) -> None:
 
 def test_load_manifest_with_rules(tmp_path: Path) -> None:
     yaml_text = VALID_YAML + (
-        "rules:\n  god_module:\n    threshold: 12\n  high_coupling:\n    threshold: 5\n"
+        "rules:\n  god-module:\n    threshold: 12\n  high-coupling:\n    threshold: 5\n"
     )
     p = tmp_path / "manifest.yaml"
     p.write_text(yaml_text, encoding="utf-8")
     manifest = load_manifest(p)
-    assert manifest.rule_threshold("god_module", 10) == 12
-    assert manifest.rule_threshold("high_coupling", 8) == 5
+    assert manifest.rule_threshold("god-module", 10) == 12
+    assert manifest.rule_threshold("high-coupling", 8) == 5
     assert manifest.rule_threshold("unused", 99) == 99
 
 
@@ -99,6 +99,6 @@ def test_load_manifest_rules_unknown_key(tmp_path: Path) -> None:
 
 def test_load_manifest_rules_bad_threshold(tmp_path: Path) -> None:
     p = tmp_path / "manifest.yaml"
-    p.write_text(VALID_YAML + "rules:\n  god_module:\n    threshold: -1\n", encoding="utf-8")
+    p.write_text(VALID_YAML + "rules:\n  god-module:\n    threshold: -1\n", encoding="utf-8")
     with pytest.raises(ManifestError):
         load_manifest(p)
