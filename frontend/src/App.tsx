@@ -11,6 +11,7 @@ import RemediationTab from "./components/RemediationTab"
 import LoadingState from "./components/LoadingState"
 import FeatureCards from "./components/FeatureCards"
 import HowItWorks from "./components/HowItWorks"
+import ExampleRepos from "./components/ExampleRepos"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -95,6 +96,7 @@ export default function App() {
 
         {showHero && (
           <>
+            <ExampleRepos onSelect={(repo) => handleAnalyze(repo, "main")} loading={loading} />
             <FeatureCards />
             <HowItWorks />
           </>
