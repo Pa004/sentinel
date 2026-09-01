@@ -8,6 +8,8 @@ import SummaryCards from "./components/SummaryCards"
 import MetricsBar from "./components/MetricsBar"
 import ViolationsTab from "./components/ViolationsTab"
 import RemediationTab from "./components/RemediationTab"
+import ShareButton from "./components/ShareButton"
+import ExportButton from "./components/ExportButton"
 import SkeletonCards from "./components/SkeletonCards"
 import SkeletonMetrics from "./components/SkeletonMetrics"
 import SkeletonTable from "./components/SkeletonTable"
@@ -16,6 +18,8 @@ import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
 import { useToast } from "./components/Toast"
+import { useHistory } from "./hooks/useHistory"
+import HistoryPanel from "./components/HistoryPanel"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -39,6 +43,7 @@ export default function App() {
   const { dark, toggle } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
   const { addToast } = useToast()
+  const { history, addEntry, clearHistory } = useHistory()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [result, setResult] = useState<AnalysisResult | null>(null)
@@ -67,6 +72,12 @@ export default function App() {
       } else {
         addToast(`Found ${data.total_violations} violation(s)`, "info")
       }
+      addEntry({
+        url,
+        branch: br,
+        violations: data.total_violations,
+        drift: data.drift_score,
+      })
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Analysis failed"
       setError(msg)
@@ -180,6 +191,15 @@ export default function App() {
           </>
         )}
 
+        {!showHero && (
+          <HistoryPanel
+            history={history}
+            onSelect={(url, branch) => handleAnalyze(url, branch)}
+            onClear={clearHistory}
+            loading={loading}
+          />
+        )}
+
         {error && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -238,7 +258,16 @@ export default function App() {
               drift={result.drift_score}
             />
 
-            {metrics && <MetricsBar metrics={metrics} />}
+            <div className="flex items-center justify-between">
+              {metrics && <MetricsBar metrics={metrics} />}
+              <div className="flex items-center gap-2">
+                <ShareButton
+                  repoUrl={lastAnalyzed?.url ?? ""}
+                  branch={lastAnalyzed?.branch ?? "main"}
+                />
+                <ExportButton result={result} />
+              </div>
+            </div>
 
             <div
               role="tablist"

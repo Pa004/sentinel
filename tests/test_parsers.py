@@ -124,10 +124,10 @@ def test_java_extracts_imports() -> None:
     tree = parser.parse(JAVA_SAMPLE, Path("App.java"))
     imports = parser.extract_imports(tree, Path("App.java"))
     refs = [p for p, _ in imports]
-    # last FQN segment is returned so the stem resolver can match files
-    assert "User" in refs
-    assert "UserDao" in refs
-    assert "List" in refs
+    # full FQN is returned for multi-level imports
+    assert "com.example.model.User" in refs
+    assert "com.example.dao.UserDao" in refs
+    assert "java.util.List" in refs
 
 
 def test_java_skips_star_imports() -> None:
@@ -158,9 +158,9 @@ def test_csharp_extracts_imports() -> None:
     tree = parser.parse(CSHARP_SAMPLE, Path("Program.cs"))
     imports = parser.extract_imports(tree, Path("Program.cs"))
     refs = [p for p, _ in imports]
-    # `using System;` has no namespace; `MyApp.Domain` -> `Domain`, `MyApp.Data` -> `Data`
-    assert "Domain" in refs
-    assert "Data" in refs
+    # full FQN is returned for multi-level imports
+    assert "MyApp.Domain" in refs
+    assert "MyApp.Data" in refs
 
 
 def test_csharp_extracts_symbols() -> None:
@@ -170,10 +170,9 @@ def test_csharp_extracts_symbols() -> None:
     kinds = {s.name: s.kind for s in symbols}
     assert kinds["Program"] is SymbolKind.CLASS
     assert kinds["Main"] is SymbolKind.FUNCTION
-    # `System` is the stdlib `using`; its only segment is not treated as a local ref file,
-    # but the parser still returns it. It stays unresolved by the extractor.
+    # full FQNs are returned for multi-level imports
     parser_imports = parser.extract_imports(tree, Path("Program.cs"))
-    assert {p for p, _ in parser_imports} >= {"Domain", "Data"}
+    assert {p for p, _ in parser_imports} >= {"MyApp.Domain", "MyApp.Data"}
 
 
 def test_registry_java_csharp() -> None:
