@@ -4,9 +4,10 @@ import type { AnalysisResult } from "../api"
 
 interface ExportButtonProps {
   result: AnalysisResult
+  iconOnly?: boolean
 }
 
-export default function ExportButton({ result }: ExportButtonProps) {
+export default function ExportButton({ result, iconOnly = false }: ExportButtonProps) {
   const [open, setOpen] = useState(false)
 
   const exportJSON = () => {
@@ -34,13 +35,21 @@ export default function ExportButton({ result }: ExportButtonProps) {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-content"
+        className={
+          iconOnly
+            ? "grid h-7 w-7 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-content"
+            : "inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-content"
+        }
         aria-label="Export results"
         aria-expanded={open}
       >
         <Download className="h-3.5 w-3.5" />
-        Export
-        <ChevronDown className="h-3 w-3" />
+        {!iconOnly && (
+          <>
+            Export
+            <ChevronDown className="h-3 w-3" />
+          </>
+        )}
       </button>
       {open && (
         <div className="absolute right-0 z-10 mt-1 w-40 rounded-md border border-border bg-surface-1 shadow-lg">

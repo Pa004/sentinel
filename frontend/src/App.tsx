@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Sun, Moon, X, RotateCcw } from "lucide-react"
+import { Sun, Moon, X, RotateCcw, History } from "lucide-react"
 import { motion } from "framer-motion"
 import { analyze } from "./api"
 import type { Violation, AnalysisResult } from "./api"
 import AnalyzeForm from "./components/AnalyzeForm"
-import SummaryCards from "./components/SummaryCards"
-import MetricsBar from "./components/MetricsBar"
+import KpiStrip from "./components/KpiStrip"
 import ViolationsTab from "./components/ViolationsTab"
 import RemediationTab from "./components/RemediationTab"
 import ShareButton from "./components/ShareButton"
@@ -16,13 +15,15 @@ import SkeletonTable from "./components/SkeletonTable"
 import FeatureCards from "./components/FeatureCards"
 import HowItWorks from "./components/HowItWorks"
 import ExampleRepos from "./components/ExampleRepos"
+import HistoryRail from "./components/HistoryRail"
+import FixInspector from "./components/FixInspector"
+import { SampleOutput, MicroStats } from "./components/SampleOutput"
 import { usePrefersReducedMotion } from "./hooks/usePrefersReducedMotion"
 import { usePerformance } from "./hooks/usePerformance"
 import { useAnalytics } from "./hooks/useAnalytics"
 import { useToast } from "./components/Toast"
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts"
 import { useHistory } from "./hooks/useHistory"
-import HistoryPanel from "./components/HistoryPanel"
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -57,6 +58,8 @@ export default function App() {
   const [severityFilter, setSeverityFilter] = useState("")
   const [kindFilter, setKindFilter] = useState("")
   const [search, setSearch] = useState("")
+  const [selectedIdx, setSelectedIdx] = useState<number | null>(null)
+  const [railOpen, setRailOpen] = useState(false)
 
   const resultsRef = useRef<HTMLDivElement>(null)
   const tabRefs = useRef<Record<TabKey, HTMLButtonElement | null>>({
@@ -68,6 +71,7 @@ export default function App() {
     setLoading(true)
     setError("")
     setResult(null)
+    setSelectedIdx(null)
     setLastAnalyzed({ url, branch: br })
     startTimer()
     track("analysis_start", { repo: url, branch: br })
@@ -178,13 +182,19 @@ export default function App() {
     info: violations.filter((v) => v.severity === "info").length,
   }
 
+  const ruleGroups = new Set(violations.map((v) => v.rule)).size
+  const selectedViolation =
+    selectedIdx !== null && selectedIdx >= 0 && selectedIdx < violations.length
+      ? violations[selectedIdx]
+      : null
+
   const MotionOrDiv = reducedMotion ? "div" : motion.div
   const animProps = reducedMotion
     ? {}
     : { initial: { opacity: 0 }, animate: { opacity: 1 } }
 
   return (
-    <div className="min-h-screen bg-surface-0 text-content">
+    <div className="app-shell bg-surface-0 text-content">
       <a
         href="#results-panel"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:text-white focus:outline-none"
@@ -192,164 +202,241 @@ export default function App() {
         Skip to results
       </a>
 
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-tight">Sentinel</h1>
+      <header className="flex min-w-0 items-center gap-2.5 border-b border-border bg-surface-1 px-3">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="grid h-[22px] w-[22px] place-items-center rounded-md bg-brand text-xs font-extrabold text-white">
+            S
+          </span>
+          <h1 className="text-sm font-bold tracking-tight">Sentinel</h1>
+          <span className="h-1.5 w-1.5 rounded-full bg-success" title="backend reachable" />
+        </div>
+        <div className="hidden min-w-0 items-center gap-1.5 font-mono text-xs text-muted sm:flex" aria-live="polite">
+          {lastAnalyzed ? (
+            <>
+              <b className="truncate font-semibold text-content">{lastAnalyzed.url}</b>
+              <span className="shrink-0 rounded-full border border-border bg-surface-2 px-2 py-px text-[11px]">
+                {lastAnalyzed.branch}
+              </span>
+              {result && (
+                <span className="shrink-0 rounded-full border border-warning/40 bg-warning/15 px-2 py-px text-[11px] font-bold text-warning">
+                  drift {result.drift_score.toFixed(2)}
+                </span>
+              )}
+            </>
+          ) : (
+            <span>no repo analyzed yet</span>
+          )}
+        </div>
+        <AnalyzeForm onAnalyze={handleAnalyze} loading={loading} compact />
+        <div className="flex shrink-0 items-center">
+          <button
+            onClick={() => setRailOpen((o) => !o)}
+            className="grid h-7 w-7 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-content md:hidden"
+            aria-label="Toggle history"
+            aria-pressed={railOpen}
+          >
+            <History className="h-4 w-4" />
+          </button>
           <button
             onClick={toggle}
-            className="rounded-md p-2 text-muted hover:bg-surface-2 hover:text-content transition-colors"
+            className="grid h-7 w-7 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-content"
             aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
           >
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
+          {result && (
+            <>
+              <ShareButton
+                repoUrl={lastAnalyzed?.url ?? ""}
+                branch={lastAnalyzed?.branch ?? "main"}
+                iconOnly
+              />
+              <ExportButton result={result} iconOnly />
+            </>
+          )}
         </div>
+      </header>
 
-        <AnalyzeForm onAnalyze={handleAnalyze} loading={loading} />
+      {result && !loading && (
+        <KpiStrip
+          total={counts.total}
+          errors={counts.errors}
+          warnings={counts.warnings}
+          info={counts.info}
+          drift={result.drift_score}
+          metrics={metrics}
+          elapsedMs={perfMetrics.analysisTimeMs}
+        />
+      )}
 
-        {showHero && (
+      <main className="min-h-0">
+        {showHero ? (
+          <div className="col-span-full grid min-h-0 grid-cols-1 gap-0 overflow-y-auto bg-surface-0 lg:grid-cols-[1.1fr_.9fr]">
+            <div className="flex min-h-0 flex-col justify-between gap-5 border-b border-border px-5 py-7 sm:px-8 lg:border-b-0 lg:border-r lg:py-9">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-brand">
+                  Architecture erosion detector
+                </div>
+                <h2 className="mt-2 max-w-xl text-3xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-[44px] lg:leading-[1.05]">
+                  Ship features without rotting the architecture.
+                </h2>
+                <p className="mt-3 max-w-lg text-sm text-muted">
+                  Paste a GitHub repo. Sentinel maps the dependency graph, flags layering
+                  violations and cycles, and scores drift — with a concrete fix for every finding.
+                </p>
+              </div>
+              <div>
+                <FeatureCards />
+                <div className="mt-3">
+                  <HowItWorks />
+                </div>
+              </div>
+            </div>
+            <div className="flex min-h-0 flex-col justify-between gap-4 bg-surface-1 px-5 py-7 sm:px-8 lg:py-9">
+              <SampleOutput />
+              <div className="rounded-xl border border-border bg-surface-0 p-4">
+                <AnalyzeForm onAnalyze={handleAnalyze} loading={loading} />
+                <ExampleRepos onSelect={(repo) => handleAnalyze(repo, "main")} loading={loading} />
+              </div>
+              <MicroStats />
+            </div>
+          </div>
+        ) : (
           <>
-            <ExampleRepos onSelect={(repo) => handleAnalyze(repo, "main")} loading={loading} />
-            <FeatureCards />
-            <HowItWorks />
+            <HistoryRail
+              history={history}
+              onSelect={(url, branch) => handleAnalyze(url, branch)}
+              onClear={clearHistory}
+              loading={loading}
+              open={railOpen}
+            />
+            <section
+              ref={resultsRef}
+              id="results-panel"
+              tabIndex={-1}
+              aria-label="Results"
+              className="flex min-h-0 min-w-0 flex-col bg-surface-0 outline-none"
+            >
+              <div aria-live="polite" aria-atomic="true" className="sr-only">
+                {result && !loading && (
+                  <>Analysis complete. {counts.total} violations found: {counts.errors} errors, {counts.warnings} warnings, {counts.info} info.</>
+                )}
+              </div>
+
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  role="alert"
+                  className="m-2 rounded-md border border-error/30 bg-error/10 p-3 text-sm text-error"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span>{error}</span>
+                    <div className="flex shrink-0 gap-2">
+                      {lastAnalyzed && (
+                        <button
+                          onClick={handleRetry}
+                          className="inline-flex items-center gap-1 rounded bg-error/15 px-2 py-1 text-xs font-medium transition-colors hover:bg-error/25"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Retry
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setError("")}
+                        className="rounded p-1 transition-colors hover:bg-error/15"
+                        aria-label="Dismiss error"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {loading && (
+                <div className="space-y-4 overflow-y-auto p-3" aria-label="Loading analysis" role="status">
+                  <SkeletonCards />
+                  <SkeletonMetrics />
+                  <SkeletonTable />
+                </div>
+              )}
+
+              {result && !loading && (
+                <>
+                  <div
+                    role="tablist"
+                    aria-label="Analysis results"
+                    className="flex gap-1 px-3 pt-1.5"
+                    onKeyDown={handleTabKeyDown}
+                  >
+                    {TABS.map((tab) => {
+                      const n = tab === "violations" ? violations.length : ruleGroups
+                      return (
+                        <button
+                          key={tab}
+                          ref={(el) => { tabRefs.current[tab] = el }}
+                          role="tab"
+                          id={`tab-${tab}`}
+                          aria-selected={activeTab === tab}
+                          aria-controls={`panel-${tab}`}
+                          tabIndex={activeTab === tab ? 0 : -1}
+                          onClick={() => setActiveTab(tab)}
+                          className={`rounded-t-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                            activeTab === tab
+                              ? "border border-b-0 border-border bg-surface-1 text-content"
+                              : "text-muted hover:text-content"
+                          }`}
+                        >
+                          {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                          <span className="ml-1.5 rounded-full bg-surface-3 px-1.5 font-mono text-[10px]">
+                            {n}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <MotionOrDiv
+                    {...animProps}
+                    role="tabpanel"
+                    id={`panel-${activeTab}`}
+                    aria-labelledby={`tab-${activeTab}`}
+                    className="flex min-h-0 flex-1 flex-col border-t border-border bg-surface-1 outline-none"
+                  >
+                    {activeTab === "violations" ? (
+                      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+                        <ViolationsTab
+                          violations={violations}
+                          filtered={filtered}
+                          severityFilter={severityFilter}
+                          kindFilter={kindFilter}
+                          search={search}
+                          onSeverityChange={setSeverityFilter}
+                          onKindChange={setKindFilter}
+                          onSearchChange={setSearch}
+                          selectedIndex={selectedIdx}
+                          onSelect={(idx) =>
+                            setSelectedIdx((prev) => (idx === prev ? null : idx))
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+                        <RemediationTab violations={violations} />
+                      </div>
+                    )}
+                  </MotionOrDiv>
+                </>
+              )}
+            </section>
+            <FixInspector
+              violation={selectedViolation}
+              branch={lastAnalyzed?.branch ?? "main"}
+            />
           </>
         )}
-
-        {!showHero && (
-          <HistoryPanel
-            history={history}
-            onSelect={(url, branch) => handleAnalyze(url, branch)}
-            onClear={clearHistory}
-            loading={loading}
-          />
-        )}
-
-        {error && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            role="alert"
-            className="mt-4 rounded-md border border-error/30 bg-error/10 p-4 text-sm text-error"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <span>{error}</span>
-              <div className="flex shrink-0 gap-2">
-                {lastAnalyzed && (
-                  <button
-                    onClick={handleRetry}
-                    className="inline-flex items-center gap-1 rounded bg-error/15 px-2 py-1 text-xs font-medium transition-colors hover:bg-error/25"
-                  >
-                    <RotateCcw className="h-3 w-3" />
-                    Retry
-                  </button>
-                )}
-                <button
-                  onClick={() => setError("")}
-                  className="rounded p-1 transition-colors hover:bg-error/15"
-                  aria-label="Dismiss error"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {loading && (
-          <div className="mt-6 space-y-5" aria-label="Loading analysis" role="status">
-            <SkeletonCards />
-            <SkeletonMetrics />
-            <SkeletonTable />
-          </div>
-        )}
-
-        {result && !loading && (
-          <div
-            ref={resultsRef}
-            id="results-panel"
-            tabIndex={-1}
-            className="mt-6 space-y-5 outline-none"
-          >
-            <div aria-live="polite" aria-atomic="true" className="sr-only">
-              Analysis complete. {counts.total} violations found: {counts.errors} errors, {counts.warnings} warnings, {counts.info} info.
-            </div>
-
-            <SummaryCards
-              total={counts.total}
-              errors={counts.errors}
-              warnings={counts.warnings}
-              info={counts.info}
-              drift={result.drift_score}
-            />
-
-            {perfMetrics.analysisTimeMs !== null && (
-              <p className="text-xs text-muted text-right">
-                Analyzed in {(perfMetrics.analysisTimeMs / 1000).toFixed(1)}s
-              </p>
-            )}
-
-            <div className="flex items-center justify-between">
-              {metrics && <MetricsBar metrics={metrics} />}
-              <div className="flex items-center gap-2">
-                <ShareButton
-                  repoUrl={lastAnalyzed?.url ?? ""}
-                  branch={lastAnalyzed?.branch ?? "main"}
-                />
-                <ExportButton result={result} />
-              </div>
-            </div>
-
-            <div
-              role="tablist"
-              aria-label="Analysis results"
-              className="flex gap-2"
-              onKeyDown={handleTabKeyDown}
-            >
-              {TABS.map((tab) => (
-                <button
-                  key={tab}
-                  ref={(el) => { tabRefs.current[tab] = el }}
-                  role="tab"
-                  id={`tab-${tab}`}
-                  aria-selected={activeTab === tab}
-                  aria-controls={`panel-${tab}`}
-                  tabIndex={activeTab === tab ? 0 : -1}
-                  onClick={() => setActiveTab(tab)}
-                  className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                    activeTab === tab
-                      ? "bg-surface-2 text-content border border-border"
-                      : "text-muted hover:text-content"
-                  }`}
-                >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            <MotionOrDiv
-              {...animProps}
-              role="tabpanel"
-              id={`panel-${activeTab}`}
-              aria-labelledby={`tab-${activeTab}`}
-              className="outline-none"
-            >
-              {activeTab === "violations" ? (
-                <ViolationsTab
-                  violations={violations}
-                  filtered={filtered}
-                  severityFilter={severityFilter}
-                  kindFilter={kindFilter}
-                  search={search}
-                  onSeverityChange={setSeverityFilter}
-                  onKindChange={setKindFilter}
-                  onSearchChange={setSearch}
-                />
-              ) : (
-                <RemediationTab violations={violations} />
-              )}
-            </MotionOrDiv>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
   )
 }
