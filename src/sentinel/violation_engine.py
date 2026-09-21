@@ -11,7 +11,7 @@ from sentinel.domain.graph import DependencyGraph
 from sentinel.domain.manifest import ArchitectureManifest
 from sentinel.domain.metrics import RunMetrics, compute_metrics
 from sentinel.domain.violations import Violation
-from sentinel.git_origin import last_commit_sha, source_path_from_evidence
+from sentinel.git_origin import last_commit_sha, resolve_source_path
 from sentinel.manifest.loader import load_manifest
 from sentinel.manifest.mapper import LayerMapper, LayerRule
 from sentinel.parsers.registry import source_files
@@ -65,18 +65,18 @@ def _default_rules(manifest: ArchitectureManifest) -> tuple[Rule, ...]:
     return (
         LayerViolationRule(),
         CircularDependencyRule(),
-        GodModuleRule(manifest.rule_threshold("god-module", GOD_MODULE_DEFAULT)),
-        HighCouplingRule(manifest.rule_threshold("high-coupling", HIGH_COUPLING_DEFAULT)),
+        GodModuleRule(manifest.rule_tuning("god-module", "threshold", GOD_MODULE_DEFAULT)),
+        HighCouplingRule(manifest.rule_tuning("high-coupling", "threshold", HIGH_COUPLING_DEFAULT)),
         LowCohesionRule(
-            threshold=manifest.rule_threshold("low_cohesion", LOW_COHESION_THRESHOLD),
-            min_symbols=manifest.rule_threshold(
-                "low_cohesion_min_symbols", LOW_COHESION_MIN_SYMBOLS
+            threshold=manifest.rule_tuning("low-cohesion", "threshold", LOW_COHESION_THRESHOLD),
+            min_symbols=int(
+                manifest.rule_tuning("low-cohesion", "min_symbols", LOW_COHESION_MIN_SYMBOLS)
             ),
         ),
         BoundaryCrossingRule(),
         ReactComponentRule(
-            max_lines=manifest.rule_threshold("react_max_lines", REACT_MAX_LINES),
-            max_props=manifest.rule_threshold("react_max_props", REACT_MAX_PROPS),
+            max_lines=int(manifest.rule_tuning("react-component", "max_lines", REACT_MAX_LINES)),
+            max_props=int(manifest.rule_tuning("react-component", "max_props", REACT_MAX_PROPS)),
         ),
         DatabaseLeakageRule(),
     )
@@ -88,13 +88,23 @@ def _attach_commit_origins(violations: list[Violation], git_root: Path) -> list[
     def with_commit(v: Violation) -> Violation:
         if v.commit is not None:
             return v
-        source = source_path_from_evidence(v.evidence)
+        source = resolve_source_path(v.evidence, v.components, git_root)
         if source is None:
             return v
         try:
             rel = source.relative_to(git_root)
         except ValueError:
-            return v
+            # Absolute path outside the root (e.g. temp snapshot): try the
+            # relative form via components before giving up.
+            rel = None
+            for component in v.components:
+                candidate = Path(component)
+                if candidate.is_absolute():
+                    continue
+                rel = candidate
+                break
+            if rel is None:
+                return v
         sha = last_commit_sha(git_root, rel)
         if sha is None:
             return v
