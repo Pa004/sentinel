@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 
 from fastapi import APIRouter, HTTPException
@@ -10,11 +11,11 @@ from pydantic import BaseModel, field_validator
 
 from backend.services.analysis import run_analysis
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api", tags=["analyze"])
 
-_GITHUB_URL_RE = re.compile(
-    r"^(https?://github\.com/)?[\w.-]+/[\w.-]+(/.*)?$"
-)
+_GITHUB_URL_RE = re.compile(r"^(https?://github\.com/)?[\w.-]+/[\w.-]+(/.*)?$")
 _BRANCH_RE = re.compile(r"^[\w./-]+$")
 
 MAX_CONCURRENT_ANALYSES = 3
@@ -33,8 +34,7 @@ class AnalyzeRequest(BaseModel):
             raise ValueError("repo_url is required")
         if not _GITHUB_URL_RE.match(v):
             raise ValueError(
-                "repo_url must be a GitHub URL (https://github.com/owner/repo) "
-                "or owner/repo format"
+                "repo_url must be a GitHub URL (https://github.com/owner/repo) or owner/repo format"
             )
         if len(v) > 500:
             raise ValueError("repo_url is too long (max 500 characters)")
@@ -59,16 +59,23 @@ class AnalyzeRequest(BaseModel):
 @router.post("/analyze")
 async def analyze(request: AnalyzeRequest) -> dict:
     """Clone a repo, run Sentinel analysis, return results."""
-    if _semaphore.locked():
+    try:
+        await asyncio.wait_for(_semaphore.acquire(), timeout=0)
+    except TimeoutError:
         raise HTTPException(
             status_code=429,
             detail="Too many concurrent analyses — try again in a moment",
-        )
+        ) from None
     try:
-        async with _semaphore:
-            result = await run_analysis(request.repo_url, request.branch)
-            return result
+        result = await run_analysis(request.repo_url, request.branch)
+        return result
     except TimeoutError as exc:
         raise HTTPException(status_code=504, detail=str(exc)) from exc
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)[:500]) from exc
+    except (ValueError, FileNotFoundError) as exc:
+        logger.warning("analysis input error: %s", exc)
+        raise HTTPException(status_code=400, detail=str(exc)[:200]) from exc
+    except Exception:
+        logger.exception("analysis failed for %s", request.repo_url)
+        raise HTTPException(status_code=500, detail="Analysis failed — check server logs") from None
+    finally:
+        _semaphore.release()

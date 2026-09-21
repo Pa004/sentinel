@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import shutil
 import tempfile
 from pathlib import Path
@@ -35,7 +36,15 @@ def _parse_repo_url(url: str) -> tuple[str, str]:
 
 
 async def run_analysis(repo_url: str, branch: str = "main") -> dict:
-    """Clone repo, run analysis, return results dict."""
+    """Clone repo, run analysis, return results dict.
+
+    Blocking git + analysis work runs in a worker thread so the event
+    loop stays responsive under concurrent requests.
+    """
+    return await asyncio.to_thread(_run_analysis_sync, repo_url, branch)
+
+
+def _run_analysis_sync(repo_url: str, branch: str = "main") -> dict:
     owner, name = _parse_repo_url(repo_url)
     clone_url = f"https://github.com/{owner}/{name}.git"
 
