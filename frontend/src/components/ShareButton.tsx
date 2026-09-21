@@ -4,9 +4,10 @@ import { Share2, Check } from "lucide-react"
 interface ShareButtonProps {
   repoUrl: string
   branch: string
+  iconOnly?: boolean
 }
 
-export default function ShareButton({ repoUrl, branch }: ShareButtonProps) {
+export default function ShareButton({ repoUrl, branch, iconOnly = false }: ShareButtonProps) {
   const [copied, setCopied] = useState(false)
 
   const handleShare = async () => {
@@ -27,18 +28,22 @@ export default function ShareButton({ repoUrl, branch }: ShareButtonProps) {
   return (
     <button
       onClick={handleShare}
-      className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-content"
+      className={
+        iconOnly
+          ? "grid h-7 w-7 place-items-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-content"
+          : "inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-surface-2 hover:text-content"
+      }
       aria-label="Share analysis"
     >
       {copied ? (
         <>
           <Check className="h-3.5 w-3.5" />
-          Copied
+          {!iconOnly && "Copied"}
         </>
       ) : (
         <>
           <Share2 className="h-3.5 w-3.5" />
-          Share
+          {!iconOnly && "Share"}
         </>
       )}
     </button>

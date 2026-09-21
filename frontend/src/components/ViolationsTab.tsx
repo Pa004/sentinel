@@ -12,6 +12,8 @@ interface ViolationsTabProps {
   onSeverityChange: (v: string) => void
   onKindChange: (v: string) => void
   onSearchChange: (v: string) => void
+  selectedIndex?: number | null
+  onSelect?: (idx: number | null) => void
 }
 
 const severityBadge: Record<string, string> = {
@@ -61,11 +63,23 @@ export default function ViolationsTab({
   onSeverityChange,
   onKindChange,
   onSearchChange,
+  selectedIndex,
+  onSelect,
 }: ViolationsTabProps) {
   const kinds = [...new Set(violations.map((v) => v.kind))].sort()
-  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
+  const [internalExpanded, setInternalExpanded] = useState<number | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>(null)
   const [sortDir, setSortDir] = useState<SortDir>("asc")
+
+  const controlled = onSelect !== undefined
+  const expandedIndex = controlled ? (selectedIndex ?? null) : internalExpanded
+  const setExpandedIndex = (idx: number | null) => {
+    if (controlled) {
+      onSelect(idx)
+    } else {
+      setInternalExpanded(idx)
+    }
+  }
 
   const sorted = [...filtered].sort((a, b) => {
     if (!sortKey) return 0
@@ -95,14 +109,26 @@ export default function ViolationsTab({
   }
 
   return (
-    <div>
-      <div className="mb-3 flex flex-wrap gap-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-y border-border bg-surface-1 px-3 py-1.5">
+        <label className="sr-only" htmlFor="violation-search">Search violations</label>
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          <input
+            id="violation-search"
+            type="text"
+            placeholder="Search rule, evidence, impact..."
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="w-full rounded-md border border-border bg-surface-2 py-1.5 pl-8 pr-3 text-xs text-content placeholder:text-muted"
+          />
+        </div>
         <label className="sr-only" htmlFor="severity-filter">Filter by severity</label>
         <select
           id="severity-filter"
           value={severityFilter}
           onChange={(e) => onSeverityChange(e.target.value)}
-          className="rounded-md border border-border bg-surface-1 px-3 py-1.5 text-sm text-content"
+          className="max-w-32 shrink-0 rounded-md border border-border bg-surface-2 px-2 py-1.5 text-xs text-content"
         >
           <option value="">Severity: all</option>
           <option value="error">error</option>
@@ -114,25 +140,16 @@ export default function ViolationsTab({
           id="kind-filter"
           value={kindFilter}
           onChange={(e) => onKindChange(e.target.value)}
-          className="rounded-md border border-border bg-surface-1 px-3 py-1.5 text-sm text-content"
+          className="max-w-36 shrink-0 rounded-md border border-border bg-surface-2 px-2 py-1.5 text-xs text-content"
         >
           <option value="">Kind: all</option>
           {kinds.map((k) => (
             <option key={k} value={k}>{k}</option>
           ))}
         </select>
-        <label className="sr-only" htmlFor="violation-search">Search violations</label>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-          <input
-            id="violation-search"
-            type="text"
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full rounded-md border border-border bg-surface-1 py-1.5 pl-8 pr-3 text-sm text-content placeholder:text-muted sm:w-52"
-          />
-        </div>
+        <span className="ml-auto shrink-0 font-mono text-[11px] text-muted">
+          {filtered.length} / {violations.length}
+        </span>
       </div>
 
       {filtered.length === 0 ? (
