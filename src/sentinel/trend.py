@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
-import shutil
+import tempfile
 from pathlib import Path
 from subprocess import run
 
 from sentinel.domain.manifest import ArchitectureManifest
 from sentinel.domain.trend import TrendPoint
 from sentinel.domain.violations import Violation, ViolationKind
-from sentinel.git_origin import source_path_from_evidence
+from sentinel.git_origin import resolve_source_path
 from sentinel.parsers.registry import parser_for
 from sentinel.violation_engine import AnalysisResult, analyze_repository
 
-SOURCE_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".py")
+SOURCE_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".py", ".java", ".cs")
 SNAPSHOT_DIR = ".sentinel_snapshot"
+DEFAULT_MAX_COMMITS = 50
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -50,13 +51,15 @@ def snapshot_source_files(repo: Path, commit: str) -> list[str]:
 
 
 def analyze_at_commit(repo: Path, commit: str, manifest: ArchitectureManifest) -> AnalysisResult:
-    """Reconstruct `commit` into a temp dir and analyze it as a repository."""
-    snapshot = Path(repo) / SNAPSHOT_DIR
-    if snapshot.exists():
-        shutil.rmtree(snapshot)
-    snapshot.mkdir(parents=True)
+    """Reconstruct `commit` into an isolated temp dir and analyze it.
 
-    try:
+    Uses a system temp directory outside the analyzed repo so `git status`
+    stays clean and no snapshot residue survives a crash.
+    """
+    with tempfile.TemporaryDirectory(prefix="sentinel_") as tmp:
+        snapshot = Path(tmp) / "snapshot"
+        snapshot.mkdir(parents=True)
+
         for rel in snapshot_source_files(repo, commit):
             content = _git(repo, "show", f"{commit}:{rel}")
             target = (snapshot / rel).resolve()
@@ -66,20 +69,23 @@ def analyze_at_commit(repo: Path, commit: str, manifest: ArchitectureManifest) -
             target.write_text(content, encoding="utf-8")
 
         return analyze_repository(snapshot, manifest)
-    finally:
-        if snapshot.exists():
-            shutil.rmtree(snapshot)
 
 
 def _stable_key(violation: Violation, snapshot_dir: Path) -> str:
     """A stable identity for a violation, independent of the temp snapshot path."""
-    source = source_path_from_evidence(violation.evidence)
+    source = resolve_source_path(violation.evidence, violation.components, snapshot_dir)
     if source is None:
+        # Fall back to components text so distinct files stay distinct.
+        if violation.components:
+            return f"{violation.kind.value} {'|'.join(sorted(violation.components))[-160:]}"
         return f"{violation.kind.value} <rule:{violation.rule}>"
     try:
         rel = source.relative_to(snapshot_dir)
         return f"{violation.kind.value} {rel.as_posix()}"
     except ValueError:
+        # Absolute path outside the snapshot or already repo-relative.
+        if not source.is_absolute() and violation.components:
+            return f"{violation.kind.value} {'|'.join(sorted(violation.components))[-160:]}"
         return f"{violation.kind.value} {source}"
 
 
@@ -88,13 +94,17 @@ def build_trend(
     manifest: ArchitectureManifest,
     since: str | None = None,
     until: str | None = None,
+    max_commits: int = DEFAULT_MAX_COMMITS,
 ) -> list[TrendPoint]:
     """Compute violation counts per commit and flag architectural regression.
 
     A violation counts as introduced (regression) at a commit when its stable
     identity was absent from the immediately preceding commit in the range.
+    Only the most recent `max_commits` in range are analyzed to bound cost.
     """
     commits = list_commits(repo, since, until)
+    if max_commits > 0:
+        commits = commits[-max_commits:]
     snapshot_dir = Path(repo) / SNAPSHOT_DIR
     points: list[TrendPoint] = []
     prev_keys: set[str] = set()

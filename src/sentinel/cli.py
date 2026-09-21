@@ -93,6 +93,9 @@ def trend(
     ),
     since: str | None = typer.Option(None, "--from", help="Start commit SHA"),  # noqa: B008
     until: str | None = typer.Option(None, "--to", help="End commit SHA"),  # noqa: B008
+    max_commits: int = typer.Option(  # noqa: B008
+        50, "--max-commits", help="Max commits to analyze (most recent)"
+    ),
 ) -> None:
     """Report architectural regression across a commit range."""
     from sentinel.domain.manifest import ArchitectureManifest
@@ -100,7 +103,7 @@ def trend(
     from sentinel.trend import build_trend
 
     man: ArchitectureManifest = load_manifest(manifest)
-    points = build_trend(repo, man, since=since, until=until)
+    points = build_trend(repo, man, since=since, until=until, max_commits=max_commits)
     if not points:
         console.print("No commits in range to analyze.")
         return
