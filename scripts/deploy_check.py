@@ -54,8 +54,11 @@ def main() -> None:
 
     # Backend checks
     print("--- Backend ---")
-    check("ruff lint", ["python", "-m", "ruff", "check", "src", "tests"])
-    check("ruff format", ["python", "-m", "ruff", "format", "--check", "src", "tests"])
+    check("ruff lint", ["python", "-m", "ruff", "check", "src", "tests", "backend"])
+    check(
+        "ruff format",
+        ["python", "-m", "ruff", "format", "--check", "src", "tests", "backend"],
+    )
     check("pytest", ["python", "-m", "pytest", "tests", "-q"], timeout=180)
     print()
 
