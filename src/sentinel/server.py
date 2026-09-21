@@ -1,4 +1,9 @@
-"""Lightweight stdlib HTTP server for Sentinel analysis reports."""
+"""Lightweight stdlib HTTP server for Sentinel analysis reports.
+
+LEGACY: local `sentinel serve` only. The SaaS deployment uses
+`backend/main.py` (FastAPI). Bug fixes go to the FastAPI backend;
+this module receives only minimal maintenance.
+"""
 
 from __future__ import annotations
 

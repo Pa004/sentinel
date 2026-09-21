@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sentinel"
-version = "0.1.0"
+version = "0.2.1"
 description = "Architecture erosion detector. Compares intended vs observed architecture."
 requires-python = ">=3.12"
 dependencies = [

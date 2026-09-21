@@ -9,7 +9,7 @@ reports violations, and tracks regression across git history.
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-141%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-142%20passed-brightgreen.svg)]()
 [![Live Demo](https://img.shields.io/badge/demo-live-ff69b4.svg)](https://sentinel-zxr.pages.dev)
 
 [**Try it live**](https://sentinel-zxr.pages.dev) — no installation required
@@ -27,13 +27,13 @@ Sentinel analyzes your repository's dependency graph and compares it against a d
 | Rule | What it catches | Severity |
 |------|----------------|----------|
 | Layer violation | Dependencies crossing forbidden layer boundaries | error |
-| Circular dependency | Cycles across modules (Tarjan SCC) | error |
+| Circular dependency | Cycles across modules (Tarjan SCC) | warning |
 | God module | Module with too many connections (fan-in + fan-out) | warning |
 | High coupling | Module depended on by too many others | warning |
 | Low cohesion | Module with poor internal cohesion (LCOM heuristic) | warning |
-| Boundary crossing | Non-layer code importing sentinel markers | warning |
-| React component | Non-UI layer importing React components | warning |
-| Database leakage | Direct dependencies to data-layer modules | warning |
+| Boundary crossing | Individual imports crossing declared layer boundaries | warning |
+| React component | Oversized components (>max_lines) or too many props (>max_props) | warning |
+| Database leakage | Direct dependencies to data-layer modules | error |
 
 Every violation includes the **origin commit** — the last commit that touched the offending file.
 
@@ -61,8 +61,8 @@ sentinel analyze /path/to/repo --manifest sentinel.yaml
 # Generate HTML report
 sentinel report /path/to/repo --manifest sentinel.yaml -o report.html
 
-# Detect regression across commits
-sentinel trend /path/to/repo --manifest sentinel.yaml --from abc123 --to def456
+# Detect regression across commits (analyzes the 50 most recent by default)
+sentinel trend /path/to/repo --manifest sentinel.yaml --from abc123 --to def456 --max-commits 50
 ```
 
 ### Option 3: Docker
@@ -89,12 +89,12 @@ Optional tuning:
 
 ```yaml
 rules:
-  god_module: { threshold: 12 }    # total coupling (fan-in + fan-out)
-  high_coupling: { threshold: 5 }  # fan-in (number of dependents)
-  low_cohesion: { threshold: 0.3 } # cohesion score (0.0-1.0)
-  boundary_crossing: { threshold: 3 }
-  react_component: { max_lines: 150, max_props: 8 }
-  database_leakage: { threshold: 2 }
+  god-module: { threshold: 12 }    # total coupling (fan-in + fan-out)
+  high-coupling: { threshold: 5 }  # fan-in (number of dependents)
+  low-cohesion: { threshold: 0.3, min_symbols: 5 } # cohesion score (0.0-1.0)
+  react-component: { max_lines: 150, max_props: 8 }
+  boundary-crossing: { threshold: 3 }
+  database-leakage: { threshold: 2 }
 ```
 
 **No manifest?** Sentinel still runs 6 of 8 rules (all except layer violation and database leakage).
@@ -130,7 +130,7 @@ Repository
 
 Sentinel runs as a stateless SaaS:
 
-- **Backend**: FastAPI on SnapDeploy (auto-sleep, Docker)
+- **Backend**: FastAPI on Fly.io (auto-sleep, Docker)
 - **Frontend**: React on Cloudflare Pages (free tier)
 
 The backend has no database or auth — a single `POST /api/analyze` endpoint clones the repo, runs analysis, and returns results.
@@ -154,7 +154,7 @@ GitHub Actions runs on every push to `main` and every PR:
 
 | Job | What it runs |
 |-----|-------------|
-| `lint` | `ruff check` + `ruff format --check` on backend |
+| `lint` | `ruff check` + `ruff format --check` on `src`, `tests`, `backend` |
 | `test` | `pytest` on Python 3.12 + 3.13 (Ubuntu + Windows matrix) |
 | `dashboard` | `npm run test` + `npm run build` on frontend |
 
@@ -170,8 +170,8 @@ Runs lint, format, tests, frontend build, and security checks before deployment.
 
 ```bash
 # Backend
-ruff check src tests
-ruff format src tests
+ruff check src tests backend
+ruff format src tests backend
 python -m pytest tests/ -v
 
 # Frontend
@@ -234,7 +234,7 @@ sentinel/
 │   │   ├── api.ts                 # Backend client + cache
 │   │   └── App.tsx                # Root component
 │   └── package.json
-├── tests/                         # 126 Python tests
+├── tests/                         # 127 Python tests
 ├── scripts/deploy_check.py        # Pre-deploy validation
 ├── .github/workflows/ci.yml       # CI pipeline
 ├── Dockerfile                     # Multi-stage build
@@ -259,7 +259,7 @@ sentinel/
 1. Fork the repo
 2. Create a feature branch (`git checkout -b feat/my-feature`)
 3. Make changes with tests
-4. Run backend checks: `ruff check src tests && ruff format src tests && python -m pytest tests/`
+4. Run backend checks: `ruff check src tests backend && ruff format --check src tests backend && python -m pytest tests/`
 5. Run frontend checks: `cd frontend && npm run test && npm run build`
 6. Open a PR against `main`
 

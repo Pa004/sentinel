@@ -2,6 +2,17 @@
 
 All notable changes to Sentinel are documented here.
 
+## [0.2.1] - 2026-09-21
+
+### Fixed
+
+- **Manifest rule keys** — canonical hyphenated blocks (`god-module`, `low-cohesion`, `react-component`) with underscore aliases; `low-cohesion` accepts `threshold` + `min_symbols`, `react-component` accepts `max_lines` + `max_props`; legacy flat keys (`react_max_lines`, `low_cohesion_min_symbols`) and split react keys still resolve
+- **Commit attribution** — relative evidence paths resolve against repo root with fallback to violation components
+- **Trend analysis** — snapshot moved to system temp dir (no `.sentinel_snapshot` residue), `--max-commits` flag (default 50), Java/C# files included
+- **Backend concurrency** — atomic 429 via `wait_for(semaphore, 0)` (no `locked()` race), blocking git/analysis offloaded with `asyncio.to_thread`, generic 500 without internal leakage
+- **CORS config** — accepts JSON list or comma-separated `CORS_ORIGINS`
+- **Infra** — runtime image copies only `src/` + `backend/` (+ packaging), `.dockerignore` excludes `.venv/tests`, Fly VM 512MB, `deploy_check.py` lints `backend/`
+
 ## [0.2.0] - 2026-09-01
 
 ### Added
